@@ -498,14 +498,14 @@ function JohnDeereDemo() {
           <rect x={10} y={2} width={2} height={9} fill="#fff" rx={0.5}/>
         </svg>
         <span style={{ fontFamily:"'JetBrains Mono',monospace", color:'#999', fontSize:9, letterSpacing:'0.1em' }}>Microsoft Power BI · Supplier Diversity Dashboard</span>
-        <div style={{ marginLeft:'auto', display:'flex', gap:5 }}>
+        <div style={{ marginLeft:'auto', display:'flex', flexWrap:'wrap', gap:5 }}>
           {['↻ Refresh','▼ Filter','↑ Export'].map(b => (
             <div key={b} style={{ background:'#2e2e2e', color:'#777', fontFamily:"'JetBrains Mono',monospace", fontSize:7.5, padding:'2px 6px', borderRadius:2 }}>{b}</div>
           ))}
         </div>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6, padding:'8px 10px 0' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(80px,1fr))', gap:6, padding:'8px 10px 0' }}>
         {[
           { label:'TOTAL SPEND TRACKED', val:`$${spend.toFixed(1)}B+`, hi:'#FFDE00' },
           { label:'DATA TABLES JOINED',  val:`${tables} / 15`,         hi:'#367C2B' },
@@ -641,14 +641,14 @@ function QualcommDemo() {
       <div style={{ background:'#0f0f20', padding:'7px 10px', borderBottom:'1px solid #1a1a30', display:'flex', alignItems:'center', gap:8 }}>
         <div style={{ width:8, height:8, borderRadius:'50%', background:'#3253DC', boxShadow:'0 0 6px #3253DC' }} />
         <span style={{ color:'#7777bb', fontSize:8.5, letterSpacing:'0.1em' }}>QUALCOMM · Integration Alert Platform</span>
-        <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
+        <div style={{ marginLeft:'auto', display:'flex', flexWrap:'wrap', gap:6 }}>
           {['React','Spring Boot','MongoDB','REST API'].map(t => (
             <span key={t} style={{ color:'#3a3a5a', fontSize:7.5, border:'1px solid #1e1e3a', padding:'1px 5px', borderRadius:2 }}>{t}</span>
           ))}
         </div>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))' }}>
         {/* Left: live event stream */}
         <div style={{ borderRight:'1px solid #12122a', padding:'8px 9px' }}>
           <div style={{ display:'flex', justifyContent:'space-between', marginBottom:7 }}>
@@ -671,7 +671,7 @@ function QualcommDemo() {
         {/* Right: React frontend dashboard */}
         <div style={{ padding:'8px 9px' }}>
           <div style={{ color:'#3a3a5a', fontSize:7, letterSpacing:'0.1em', marginBottom:7 }}>REACT FRONTEND · ALERTS DASHBOARD</div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:4, marginBottom:8 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(55px,1fr))', gap:4, marginBottom:8 }}>
             {cards.map((m,i) => (
               <div key={i} style={{ background:'#0f0f20', border:`1px solid ${m.c}44`, padding:'5px 6px', borderRadius:2 }}>
                 <div style={{ color:'#3a3a5a', fontSize:6.5, marginBottom:3 }}>{m.label}</div>
@@ -1154,7 +1154,7 @@ function BehindTheScenesArchive() {
                   transform: isActive
                     ? 'translate(-50%, -50%) rotate(0deg) scale(1)'
                     : isPast
-                      ? `translate(calc(-50% - ${120 + i * 8}px), calc(-50% + ${28 + i * 6}px)) rotate(${-10 - i * 3}deg) scale(0.9)`
+                      ? `translate(calc(-50% - ${60 + i * 4}px), calc(-50% + ${20 + i * 4}px)) rotate(${-10 - i * 3}deg) scale(0.88)`
                       : `translate(calc(-50% + ${22 + i * 10}px), calc(-50% + ${18 + i * 5}px)) rotate(${4 + i * 3}deg) scale(${0.94 - i * 0.02})`,
                   opacity: isPast ? 0.42 : 1,
                   animation: isActive ? 'bts-flip 1.3s cubic-bezier(.22,.61,.36,1) both' : 'none',
@@ -1223,7 +1223,7 @@ const SECTION_CONTENT = {
 
         <div style={mS.expRow}>
           <div style={mS.expYr}>Feb 2024 — Dec 2025</div>
-          <div>
+          <div style={mS.expBody}>
             <div style={mS.expRole}>Data Analytics<span style={mS.expCo}> — John Deere</span></div>
             <div style={mS.expNote}>Power BI dashboards · Databricks + SQL + AWS ETL · $10B+ supply chain visibility · 70% faster time-to-insight</div>
           </div>
@@ -1232,7 +1232,7 @@ const SECTION_CONTENT = {
 
         <div style={mS.expRow}>
           <div style={mS.expYr}>Aug — Dec 2024</div>
-          <div>
+          <div style={mS.expBody}>
             <div style={mS.expRole}>Data Science Co-Op<span style={mS.expCo}> — Johnson & Johnson</span></div>
             <div style={mS.expNote}>PySpark ETL · 100K+ complaint records · GenAI NL→SQL dashboard · 85% less manual effort</div>
           </div>
@@ -1241,7 +1241,7 @@ const SECTION_CONTENT = {
 
         <div style={mS.expRow}>
           <div style={mS.expYr}>May — Aug 2023</div>
-          <div>
+          <div style={mS.expBody}>
             <div style={mS.expRole}>IT Software Engineer Intern<span style={mS.expCo}> — Qualcomm</span></div>
             <div style={mS.expNote}>React + Spring Boot + MongoDB · 10,000+ real-time security metrics · incident triage ↓ 40%</div>
           </div>
@@ -1250,7 +1250,7 @@ const SECTION_CONTENT = {
 
         <div style={mS.expRow}>
           <div style={mS.expYr}>2021 — 2025</div>
-          <div>
+          <div style={mS.expBody}>
             <div style={mS.expRole}>B.S. Mathematics<span style={mS.expCo}> — Ohio State University</span></div>
             <div style={mS.expNote}>Data Analytics track · Computational Mathematics · PSM I Certified</div>
           </div>
@@ -1383,8 +1383,9 @@ const mS = {
   workName: { fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:500 },
   workNote: { fontSize:13, opacity:0.6, marginTop:2 },
   workRole: { fontSize:11, fontFamily:"'JetBrains Mono',monospace", letterSpacing:'0.08em', textTransform:'uppercase', opacity:0.5 },
-  expRow: { display:'grid', gridTemplateColumns:'140px 1fr', gap:24, padding:'18px 0', borderBottom:'1px solid rgba(128,128,128,0.15)' },
-  expYr: { fontFamily:"'JetBrains Mono',monospace", fontSize:11, opacity:0.5, paddingTop:4, letterSpacing:'0.05em' },
+  expRow: { display:'flex', flexWrap:'wrap', columnGap:20, rowGap:4, padding:'18px 0', borderBottom:'1px solid rgba(128,128,128,0.15)' },
+  expYr: { fontFamily:"'JetBrains Mono',monospace", fontSize:11, opacity:0.5, paddingTop:4, letterSpacing:'0.05em', flexShrink:0 },
+  expBody: { flex:1, minWidth:0 },
   expRole: { fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:500 },
   expCo: { fontStyle:'italic', opacity:0.7, fontSize:18 },
   expNote: { fontSize:13, opacity:0.65, marginTop:4, lineHeight:1.5 },
@@ -1604,7 +1605,7 @@ const contactS = {
 const btsS = {
   wrap: { display:'grid', gap:18 },
   desk: {
-    position:'relative', minHeight:360, borderRadius:8, overflow:'hidden',
+    position:'relative', minHeight:280, borderRadius:8, overflow:'hidden',
     background:'linear-gradient(135deg,#17110c,#2a1a10 55%,#120e0b)',
     border:'1px solid rgba(255,255,255,0.08)', boxShadow:'inset 0 0 0 1px rgba(255,255,255,0.04), 0 24px 80px rgba(0,0,0,0.24)',
   },
@@ -1621,7 +1622,7 @@ const btsS = {
     backfaceVisibility:'hidden',
   },
   paperTag: { fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.14em', textTransform:'uppercase', opacity:0.48, marginBottom:14 },
-  paperTitle: { fontFamily:"'Cormorant Garamond',serif", fontSize:36, lineHeight:0.95, fontStyle:'italic' },
+  paperTitle: { fontFamily:"'Cormorant Garamond',serif", fontSize:'clamp(22px,5vw,36px)', lineHeight:0.95, fontStyle:'italic' },
   paperRule: { height:1, background:'rgba(0,0,0,0.14)', margin:'18px 0' },
   paperNote: { fontSize:14, lineHeight:1.55, opacity:0.72 },
   paperMarks: { display:'grid', gap:7, marginTop:22 },
@@ -2312,7 +2313,7 @@ function App() {
   const [editMode, setEditMode] = React.useState(false);
   const [timeStr, setTimeStr] = React.useState(getTimeStr());
   const [introPhase, setIntroPhase] = React.useState('zoomed-in');
-  const [darkMode, setDarkMode] = React.useState(true);
+  const darkMode = true;
   const [globeActive, setGlobeActive] = React.useState(false);
   const [resumeWriterActive, setResumeWriterActive] = React.useState(false);
   const calcSpotAngles = (w, h) => {
@@ -2438,18 +2439,6 @@ function App() {
       </div>
       <div style={{ position:'fixed', top:28, right:32, zIndex:5, textAlign:'right' }}>
         <div style={chromeStyle}>{timeStr}</div>
-        <button
-          onClick={() => setDarkMode(d => !d)}
-          style={{
-            marginTop:6, display:'block', marginLeft:'auto',
-            fontFamily:"'JetBrains Mono',monospace", fontSize:9, letterSpacing:'0.18em',
-            textTransform:'uppercase', background:'transparent',
-            border:`1px solid ${darkMode ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.22)'}`, color: fg,
-            cursor:'pointer', padding:'4px 10px', transition:'color 0.3s,border-color 0.3s',
-          }}
-        >
-          {darkMode ? '◑ LIGHT' : '◐ DARK'}
-        </button>
       </div>
       <div style={{ position:'fixed', bottom:28, left:32, zIndex:5 }}>
         <div style={{...chromeStyle,opacity:0.5}}>[ click a box to open ]</div>
