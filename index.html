@@ -1,0 +1,2571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Akshay Tallikar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #ffffff;
+    color: #000000;
+    font-family: 'Inter', system-ui, sans-serif;
+    overflow: hidden;
+    cursor: default;
+  }
+  #root { width: 100vw; height: 100vh; position: relative; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+
+<script type="text/babel">
+
+// ─── SHATTER ────────────────────────────────────────────────────────────────
+
+function makeShards(rect, effect, bgColor = '#000', textColor = '#fff', label = '') {
+  const shards = [];
+  const w = rect.width;
+  const h = rect.height;
+
+  if (effect === 'shatter') {
+    const cols = 6, rows = 5;
+    for (let i = 0; i < cols; i++) {
+      for (let j = 0; j < rows; j++) {
+        shards.push({
+          x: (i / cols) * w, y: (j / rows) * h,
+          w: w / cols, h: h / rows,
+          dx: (Math.random() - 0.5) * 400 + ((i / cols) - 0.5) * 600,
+          dy: (Math.random() - 0.5) * 200 + 300 + Math.random() * 300,
+          rot: (Math.random() - 0.5) * 720,
+          delay: Math.random() * 60, bg: bgColor, color: textColor, label,
+          clip: Math.random() > 0.5
+            ? `polygon(0 0, 100% 0, ${Math.random()*100}% 100%)`
+            : `polygon(0 ${Math.random()*100}%, 100% 0, 100% 100%)`,
+        });
+      }
+    }
+  } else if (effect === 'dissolve') {
+    const cols = 12, rows = 8;
+    for (let i = 0; i < cols; i++) {
+      for (let j = 0; j < rows; j++) {
+        shards.push({
+          x: (i / cols) * w, y: (j / rows) * h,
+          w: w / cols + 0.5, h: h / rows + 0.5,
+          dx: 0, dy: 0, rot: 0,
+          delay: (i + j) * 8 + Math.random() * 80, scale: 0,
+          bg: bgColor, color: textColor, label, clip: 'none',
+        });
+      }
+    }
+  } else if (effect === 'scatter') {
+    const chunks = 6;
+    for (let i = 0; i < chunks; i++) {
+      shards.push({
+        x: 0, y: (i / chunks) * h, w, h: h / chunks + 1,
+        dx: (Math.random() - 0.5) * 1400, dy: (Math.random() - 0.5) * 1000,
+        rot: (Math.random() - 0.5) * 180, delay: i * 30,
+        bg: bgColor, color: textColor, label, clip: 'none',
+      });
+    }
+  } else if (effect === 'glitch') {
+    ['#ff003c', '#00e5ff', bgColor].forEach((c, idx) => {
+      shards.push({
+        x: 0, y: 0, w, h,
+        dx: (idx - 1) * 40 + (Math.random() - 0.5) * 20,
+        dy: (Math.random() - 0.5) * 16, rot: 0, delay: idx * 40,
+        bg: idx < 2 ? 'transparent' : c, color: idx < 2 ? c : textColor,
+        label, clip: 'none', mix: idx < 2 ? 'screen' : 'normal', isGlitch: true,
+      });
+    });
+  } else {
+    shards.push({ x: 0, y: 0, w, h, dx: 0, dy: 0, rot: 0, delay: 0, bg: bgColor, color: textColor, label, clip: 'none' });
+  }
+  return shards;
+}
+
+function ShatterLayer({ items, onDone }) {
+  const [phase, setPhase] = React.useState('enter');
+  React.useEffect(() => {
+    const t1 = setTimeout(() => setPhase('exit'), 20);
+    const t2 = setTimeout(() => onDone && onDone(), 1400);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 50 }}>
+      {items.map((it, idx) => {
+        const shards = makeShards(it.rect, it.effect, it.bg, it.color, it.label);
+        return (
+          <div key={it.id || idx} style={{ position: 'absolute', left: it.rect.left, top: it.rect.top, width: it.rect.width, height: it.rect.height }}>
+            {shards.map((s, i) => (
+              <div key={i} style={{
+                position: 'absolute', left: s.x, top: s.y, width: s.w, height: s.h,
+                background: s.bg, color: s.color, clipPath: s.clip,
+                transition: `transform 1.1s cubic-bezier(.22,.61,.36,1) ${s.delay}ms, opacity 1.1s ease-out ${s.delay}ms`,
+                transform: phase === 'enter' ? 'translate(0,0) rotate(0) scale(1)' : `translate(${s.dx}px,${s.dy}px) rotate(${s.rot}deg) scale(${s.scale != null ? s.scale : 1})`,
+                opacity: phase === 'enter' ? 1 : 0,
+                mixBlendMode: s.mix || 'normal', overflow: 'hidden', willChange: 'transform,opacity',
+              }}>
+                {s.label && i === 0 && !s.isGlitch ? (
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: s.color }}>{s.label}</div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── JOURNEY MAP ─────────────────────────────────────────────────────────────
+
+// Mercator-ish projection for continental US
+// Bounds: lat 24.5–49°N, lon 67–124.7°W → SVG 800×480
+const W = 800, H = 480;
+const proj = (lat, lon) => [
+  (lon + 124.7) / 57.7 * W,
+  (49 - lat) / 24 * H,
+];
+
+// City coordinates
+const CITIES = {
+  pb:  { lat: 42.20, lon: -88.15, name: 'Port Barrington, IL' },
+  osu: { lat: 39.96, lon: -82.99, name: 'Columbus, OH' },
+  sd:  { lat: 32.72, lon: -117.16, name: 'San Diego, CA' },
+  cin: { lat: 39.10, lon: -84.51, name: 'Cincinnati, OH' },
+};
+Object.values(CITIES).forEach(c => { [c.x, c.y] = proj(c.lat, c.lon); });
+
+// Quadratic bezier arc between two points, arcing upward
+const arcPath = (a, b) => {
+  const cx = (a.x + b.x) / 2;
+  const cy = Math.min(a.y, b.y) - 90;
+  return `M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`;
+};
+
+function GlobeZoom({ onComplete, onCancel }) {
+  const [phase, setPhase] = React.useState(0);
+  const [mapIn, setMapIn] = React.useState(false);
+
+  React.useEffect(() => {
+    const t0 = setTimeout(() => setMapIn(true), 80);
+    const timers = [t0,
+      setTimeout(() => setPhase(1), 1100),   // → Columbus / OSU
+      setTimeout(() => setPhase(2), 3100),   // → San Diego / Qualcomm
+      setTimeout(() => setPhase(3), 5100),   // → Cincinnati / J&J
+      setTimeout(() => setPhase(4), 6900),   // → Port Barrington / John Deere
+      setTimeout(() => onComplete && onComplete(), 8400),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  const STAGES = [
+    { label: 'HOME BASE',           sub: 'Port Barrington, IL  ·  42.20°N 88.15°W' },
+    { label: 'OHIO STATE UNIVERSITY', sub: 'Columbus, OH  ·  B.S. Mathematics  ·  Dec 2025' },
+    { label: 'QUALCOMM',            sub: 'San Diego, CA  ·  Software Engineer Intern  ·  Summer 2023' },
+    { label: 'JOHNSON & JOHNSON',   sub: 'Cincinnati, OH  ·  Data Science Co-Op  ·  Fall 2024' },
+    { label: 'JOHN DEERE',          sub: 'Remote / IL  ·  Data Analytics  ·  Feb 2024 – Dec 2025' },
+  ];
+  const info = STAGES[phase];
+
+  // Travel legs: [from, to, phase it draws on, draw duration ms]
+  const LEGS = [
+    { a: CITIES.pb,  b: CITIES.osu, phase: 1, dur: 1800 },
+    { a: CITIES.osu, b: CITIES.sd,  phase: 2, dur: 1800 },
+    { a: CITIES.sd,  b: CITIES.cin, phase: 3, dur: 1800 },
+    { a: CITIES.cin, b: CITIES.pb,  phase: 4, dur: 1400 },
+  ];
+
+  return (
+    <div onClick={() => onCancel && onCancel()} style={{ position:'fixed', inset:0, zIndex:90, background:'linear-gradient(160deg,#010b16 0%,#021424 100%)', cursor:'pointer', display:'flex', flexDirection:'column', animation:'gz-fadein 0.4s ease-out both', overflow:'hidden' }}>
+
+      {/* Header */}
+      <div style={{ padding:'22px 32px 0', fontFamily:"'JetBrains Mono',monospace", color:'#fff' }}>
+        <div style={{ fontSize:10, letterSpacing:'0.18em', opacity:0.4, textTransform:'uppercase' }}>CAREER JOURNEY · ABOUT</div>
+        <div style={{ fontSize:17, letterSpacing:'0.12em', marginTop:6, transition:'all 0.5s ease' }}>{info.label}</div>
+        <div style={{ fontSize:11, opacity:0.55, marginTop:4, transition:'all 0.5s ease' }}>{info.sub}</div>
+      </div>
+
+      {/* Map */}
+      <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 16px' }}>
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          style={{ width:'min(820px,96vw)', height:'auto', display:'block', transform: mapIn ? 'scale(1)' : 'scale(0.96)', opacity: mapIn ? 1 : 0, transition:'transform 0.6s cubic-bezier(.22,.61,.36,1),opacity 0.5s' }}
+        >
+          {/* Continental US outline — Mercator approximation using proj() coords */}
+          <path
+            d="M800,30 L764,116 L757,142 L732,170 L703,174 L688,206 L674,242 L681,280 L639,310 L607,342 L599,372 L619,476 L596,464 L580,402 L553,392 L510,376 L483,402 L418,398 L379,472 L275,394 L251,356 L189,362 L105,338 L58,306 L41,250 L24,210 L3,172 L6,146 L2,140 L7,54 L0,6 L22,6 L103,0 L200,0 L283,0 L378,0 L405,0 L485,20 L497,34 L543,62 L568,132 L610,142 L617,122 L675,102 L703,80 L764,30 Z"
+            fill="rgba(12,45,90,0.5)"
+            stroke="rgba(50,120,200,0.55)"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+
+          {/* Subtle latitude/longitude grid */}
+          {[35,40,45].map(lat => {
+            const [,y] = proj(lat, -90);
+            return <line key={lat} x1={0} y1={y} x2={W} y2={y} stroke="rgba(80,140,220,0.1)" strokeWidth="0.5" />;
+          })}
+          {[-120,-110,-100,-90,-80].map(lon => {
+            const [x] = proj(40, lon);
+            return <line key={lon} x1={x} y1={0} x2={x} y2={H} stroke="rgba(80,140,220,0.1)" strokeWidth="0.5" />;
+          })}
+
+          {/* Travel arcs — always rendered, dash-animated */}
+          {LEGS.map((leg, i) => (
+            <path
+              key={i}
+              d={arcPath(leg.a, leg.b)}
+              fill="none"
+              stroke="#5bcfff"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeDasharray="1"
+              pathLength="1"
+              style={{
+                strokeDashoffset: phase >= leg.phase ? 0 : 1,
+                transition: `stroke-dashoffset ${leg.dur}ms linear`,
+                filter: 'drop-shadow(0 0 4px rgba(91,207,255,0.6))',
+              }}
+            />
+          ))}
+
+          {/* Arrowhead at each destination */}
+          {LEGS.map((leg, i) => phase >= leg.phase && (
+            <circle key={'tip'+i} cx={leg.b.x} cy={leg.b.y} r="3.5" fill="#5bcfff"
+              style={{ filter:'drop-shadow(0 0 6px #5bcfff)' }} />
+          ))}
+
+          {/* City pins */}
+          <JourneyPin city={CITIES.pb}  label="Port Barrington, IL" labelSide="above" active={phase===0||phase===4} visible={true} />
+          {phase>=1 && <JourneyPin city={CITIES.osu} label="Columbus, OH"        labelSide="right" active={phase===1} visible={true} />}
+          {phase>=2 && <JourneyPin city={CITIES.sd}  label="San Diego, CA"       labelSide="right" active={phase===2} visible={true} />}
+          {phase>=3 && <JourneyPin city={CITIES.cin} label="Cincinnati, OH"      labelSide="below" active={phase===3} visible={true} />}
+
+          {/* Company badges */}
+          {phase>=1 && <OsuBadge   x={CITIES.osu.x} y={CITIES.osu.y} />}
+          {phase>=2 && <QualcommBadge x={CITIES.sd.x}  y={CITIES.sd.y}  />}
+          {phase>=3 && <JJBadge    x={CITIES.cin.x} y={CITIES.cin.y} />}
+          {phase>=4 && <JohnDeereBadge x={CITIES.pb.x}  y={CITIES.pb.y}  />}
+        </svg>
+      </div>
+
+      {/* Progress + footer */}
+      <div style={{ padding:'0 32px 20px', display:'flex', alignItems:'center', gap:8 }}>
+        {[0,1,2,3,4].map(p => (
+          <div key={p} style={{ height:4, width: p===phase ? 28 : 8, borderRadius:2, background: p<=phase ? '#5bcfff' : 'rgba(255,255,255,0.15)', transition:'all 0.4s' }} />
+        ))}
+        <div style={{ marginLeft:'auto', fontFamily:"'JetBrains Mono',monospace", fontSize:10, color:'rgba(255,255,255,0.3)', letterSpacing:'0.14em', textTransform:'uppercase' }}>[ tap to skip ]</div>
+      </div>
+
+      <style>{`
+        @keyframes gz-fadein { from{opacity:0} to{opacity:1} }
+        @keyframes gz-pulse { 0%,100%{opacity:0.6;transform:scale(1)} 50%{opacity:1;transform:scale(1.15)} }
+        @keyframes gz-ring { 0%{r:6;opacity:0.7} 100%{r:22;opacity:0} }
+      `}</style>
+    </div>
+  );
+}
+
+function JourneyPin({ city, label, labelSide, active }) {
+  const tx = labelSide==='right' ? city.x+10 : labelSide==='left' ? city.x-10 : city.x;
+  const ty = labelSide==='above' ? city.y-14 : labelSide==='below' ? city.y+22 : city.y+4;
+  const anchor = labelSide==='right' ? 'start' : labelSide==='left' ? 'end' : 'middle';
+  return (
+    <g>
+      {active && (
+        <circle cx={city.x} cy={city.y} r="6" fill="none" stroke="#5bcfff" strokeWidth="1"
+          style={{ animation:'gz-fadein 0.3s ease-out both', transformOrigin:`${city.x}px ${city.y}px`,
+                   opacity:0.5, animationName:'gz-pulse', animationDuration:'2s', animationIterationCount:'infinite' }} />
+      )}
+      <circle cx={city.x} cy={city.y} r={active ? 6 : 5} fill={active ? '#5bcfff' : 'rgba(91,207,255,0.65)'}
+        style={{ filter: active ? 'drop-shadow(0 0 8px #5bcfff)' : 'none', transition:'all 0.4s' }} />
+      <circle cx={city.x} cy={city.y} r="2.5" fill="#fff" />
+      <text x={tx} y={ty} textAnchor={anchor} fill="rgba(255,255,255,0.82)"
+        fontSize="11" fontFamily="'JetBrains Mono',monospace" letterSpacing="0.3">
+        {label}
+      </text>
+    </g>
+  );
+}
+
+// Badge helper — renders a company badge near a city
+function Badge({ x, y, ox, oy, lines, textColor, bgColor, borderColor }) {
+  const bw = 88, bh = lines.length===1 ? 24 : 32;
+  return (
+    <g transform={`translate(${x+ox},${y+oy})`} style={{ animation:'gz-fadein 0.5s ease-out both' }}>
+      <rect x={-bw/2} y={-bh/2} width={bw} height={bh} rx="3"
+        fill={bgColor} stroke={borderColor||'rgba(255,255,255,0.2)'} strokeWidth="1" />
+      {lines.map((ln, i) => (
+        <text key={i} textAnchor="middle" y={lines.length===1 ? 5 : (i===0 ? -4 : 10)}
+          fontSize="9" fontWeight="700" fill={textColor}
+          fontFamily="'Inter',sans-serif" letterSpacing="0.8">{ln}</text>
+      ))}
+    </g>
+  );
+}
+
+function OsuBadge({ x, y }) {
+  // OSU is at (578,181) — put badge to the right, above the pin
+  return <Badge x={x} y={y} ox={60} oy={-34} lines={['OHIO STATE','BUCKEYES']} textColor="#fff" bgColor="#BB0000" />;
+}
+function QualcommBadge({ x, y }) {
+  // SD is at (105,326) — put badge to the right
+  return <Badge x={x} y={y} ox={58} oy={-28} lines={['QUALCOMM']} textColor="#fff" bgColor="#3253DC" />;
+}
+function JJBadge({ x, y }) {
+  // Cincinnati is at (557,198) — badge below right
+  return <Badge x={x} y={y} ox={60} oy={34} lines={['JOHNSON','& JOHNSON']} textColor="#CC0000" bgColor="#fff" borderColor="#CC0000" />;
+}
+function JohnDeereBadge({ x, y }) {
+  // PB is at (507,136) — badge to the left, below
+  return <Badge x={x} y={y} ox={-62} oy={38} lines={['JOHN DEERE']} textColor="#FFDE00" bgColor="#367C2B" />;
+}
+
+// ─── MODALS ─────────────────────────────────────────────────────────────────
+
+// ─── STAGE SCENE ─────────────────────────────────────────────────────────────
+
+function StageDecor({ dims }) {
+  const W = dims.w, H = dims.h;
+
+  // Replicate curtain layout math
+  const cols = 4, gap = 14, margin = 28, curtainW = 110;
+  const bw      = Math.round((Math.min(W - 2*margin, 1040) - (cols-1)*gap) / cols);
+  const rowW    = cols*bw + (cols-1)*gap;
+  const boxLeft = (W - rowW) / 2;
+  const tMargin = Math.max(4, Math.round((boxLeft - curtainW) / 2));
+  const stageL  = tMargin + curtainW;
+  const stageR  = W - tMargin - curtainW;
+
+  const floorY = H * 0.58;
+
+  // At a given y, interpolate the left/right edges of the floor trapezoid.
+  // At floorY (t=0): stageL..stageR. At H (t=1): 0..W.
+  const xAtY = (y) => {
+    const t = (y - floorY) / (H - floorY);
+    return [stageL * (1 - t), stageR + (W - stageR) * t];
+  };
+
+  // Distribute N plank seams with perspective foreshortening
+  const N = 22;
+  const ys = Array.from({length: N + 1}, (_, i) =>
+    floorY + (H - floorY) * Math.pow(i / N, 0.5)
+  );
+
+  // Alternating warm mahogany/walnut plank fills
+  const plankFills = ['#7a4520', '#62380f', '#6e4018', '#58320d', '#724218'];
+
+  // Grain lines: converge from bottom spread toward vanishing point at (W/2, floorY)
+  const GRAINS = 10;
+  const [bL, bR] = xAtY(H);
+  const grainXs = Array.from({length: GRAINS + 1}, (_, i) => bL + (i / GRAINS) * (bR - bL));
+
+  return (
+    <svg width={W} height={H}
+      style={{ position:'fixed', top:0, left:0, pointerEvents:'none', zIndex:-1 }}>
+      <defs>
+        <linearGradient id="sg-depth" x1="0" y1={floorY} x2="0" y2={H} gradientUnits="userSpaceOnUse">
+          <stop offset="0%"   stopColor="rgba(0,0,0,0.55)"/>
+          <stop offset="30%"  stopColor="rgba(0,0,0,0.08)"/>
+          <stop offset="100%" stopColor="rgba(0,0,0,0.38)"/>
+        </linearGradient>
+        <radialGradient id="sg-pool" gradientUnits="userSpaceOnUse"
+          cx={W*0.5} cy={floorY + (H-floorY)*0.18} r={(stageR-stageL)*0.6}>
+          <stop offset="0%"   stopColor="rgba(255,248,190,0.18)"/>
+          <stop offset="100%" stopColor="rgba(255,240,160,0)"/>
+        </radialGradient>
+        <linearGradient id="sg-teaser" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="#000" stopOpacity="0.92"/>
+          <stop offset="100%" stopColor="#000" stopOpacity="0"/>
+        </linearGradient>
+        {/* Clip the floor to the stage opening between the curtains */}
+        <clipPath id="stage-opening">
+          <rect x={stageL} y={floorY} width={stageR - stageL} height={H - floorY}/>
+        </clipPath>
+      </defs>
+
+      {/* ── FLOOR (clipped to stage opening between curtains) ── */}
+      <g clipPath="url(#stage-opening)">
+        {/* Planks */}
+        {ys.slice(0, -1).map((y1, i) => {
+          const y2 = ys[i + 1];
+          const [x1L, x1R] = xAtY(y1);
+          const [x2L, x2R] = xAtY(y2);
+          return (
+            <polygon key={i}
+              points={`${x1L},${y1} ${x1R},${y1} ${x2R},${y2} ${x2L},${y2}`}
+              fill={plankFills[i % plankFills.length]}
+            />
+          );
+        })}
+
+        {/* Grain lines converging to vanishing point */}
+        {grainXs.map((bx, i) => {
+          const [tL] = xAtY(floorY);
+          const tx = tL + (i / GRAINS) * (stageR - stageL);
+          return (
+            <line key={i} x1={bx} y1={H} x2={tx} y2={floorY}
+              stroke="#2a1206" strokeWidth={0.6} opacity={0.28}/>
+          );
+        })}
+
+        {/* Plank seam lines */}
+        {ys.map((y, i) => {
+          const [xL, xR] = xAtY(y);
+          return (
+            <line key={i} x1={xL} y1={y} x2={xR} y2={y}
+              stroke="#1a0b03" strokeWidth={i === 0 ? 2 : 1} opacity={i === 0 ? 0.9 : 0.65}/>
+          );
+        })}
+
+        {/* Depth/lighting overlay */}
+        <rect x={stageL} y={floorY} width={stageR - stageL} height={H - floorY} fill="url(#sg-depth)"/>
+
+        {/* Warm spotlight pool reflection */}
+        <ellipse cx={W*0.5} cy={floorY + (H-floorY)*0.18}
+          rx={(stageR-stageL)*0.36} ry={(H-floorY)*0.18}
+          fill="url(#sg-pool)"/>
+
+        {/* Front apron shadow */}
+        <rect x={stageL} y={H - 44} width={stageR - stageL} height={44} fill="rgba(0,0,0,0.55)"/>
+      </g>
+
+      {/* ── TOP TEASER ─────────────────────────────────── */}
+      <rect x={stageL} y={0} width={stageR - stageL} height={74} fill="url(#sg-teaser)"/>
+      <line x1={stageL} y1={68} x2={stageR} y2={68}
+        stroke="#C9A84C" strokeWidth={0.9} opacity={0.48}/>
+
+      {/* Proscenium corner brackets */}
+      <g stroke="#C9A84C" strokeWidth={1} fill="none" opacity={0.42}>
+        <line x1={stageL} y1={0}  x2={stageL} y2={84}/>
+        <line x1={stageL} y1={68} x2={stageL+36} y2={68}/>
+      </g>
+      <g stroke="#C9A84C" strokeWidth={1} fill="none" opacity={0.42}>
+        <line x1={stageR} y1={0}  x2={stageR} y2={84}/>
+        <line x1={stageR} y1={68} x2={stageR-36} y2={68}/>
+      </g>
+    </svg>
+  );
+}
+
+// ─── EXPERIENCE DEMO ANIMATIONS ──────────────────────────────────────────────
+
+function JohnDeereDemo() {
+  const [ready, setReady]   = React.useState(false);
+  const [spend, setSpend]   = React.useState(0);
+  const [tables, setTables] = React.useState(0);
+
+  React.useEffect(() => {
+    const t0 = setTimeout(() => setReady(true), 60);
+    let f = 0; const N = 28;
+    const id = setInterval(() => {
+      f = Math.min(f + 1, N);
+      const e = 1 - Math.pow(1 - f / N, 3);
+      setSpend(+(e * 10.4).toFixed(1));
+      setTables(Math.round(e * 15));
+      if (f >= N) clearInterval(id);
+    }, 55);
+    return () => { clearTimeout(t0); clearInterval(id); };
+  }, []);
+
+  const cats = [
+    { label:'MBE',       pct:82 }, { label:'WBE',      pct:74 },
+    { label:'SDB',       pct:61 }, { label:'SDVOSB',   pct:55 },
+    { label:'HUBZone',   pct:49 }, { label:'WOSB',     pct:67 },
+    { label:'VOSB',      pct:38 }, { label:'AbilityOne',pct:29 },
+    { label:'SBE',       pct:71 }, { label:'EDWOSB',   pct:44 },
+    { label:'LDB',       pct:33 },
+  ];
+
+  return (
+    <div style={{ background:'#1a1a1a', borderRadius:3, overflow:'hidden' }}>
+      <div style={{ background:'#222', padding:'7px 10px', display:'flex', alignItems:'center', gap:8, borderBottom:'2px solid #F2C811' }}>
+        <svg width={13} height={13} viewBox="0 0 13 13">
+          <rect width={13} height={13} fill="#F2C811" rx={2}/>
+          <rect x={2} y={7} width={3} height={4} fill="#fff" rx={0.5}/>
+          <rect x={6} y={4} width={3} height={7} fill="#fff" rx={0.5}/>
+          <rect x={10} y={2} width={2} height={9} fill="#fff" rx={0.5}/>
+        </svg>
+        <span style={{ fontFamily:"'JetBrains Mono',monospace", color:'#999', fontSize:9, letterSpacing:'0.1em' }}>Microsoft Power BI · Supplier Diversity Dashboard</span>
+        <div style={{ marginLeft:'auto', display:'flex', gap:5 }}>
+          {['↻ Refresh','▼ Filter','↑ Export'].map(b => (
+            <div key={b} style={{ background:'#2e2e2e', color:'#777', fontFamily:"'JetBrains Mono',monospace", fontSize:7.5, padding:'2px 6px', borderRadius:2 }}>{b}</div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6, padding:'8px 10px 0' }}>
+        {[
+          { label:'TOTAL SPEND TRACKED', val:`$${spend.toFixed(1)}B+`, hi:'#FFDE00' },
+          { label:'DATA TABLES JOINED',  val:`${tables} / 15`,         hi:'#367C2B' },
+          { label:'DIVERSITY CATEGORIES',val:'11',                      hi:'#888' },
+        ].map((k,i) => (
+          <div key={i} style={{ background:'#222', padding:'7px 8px', borderTop:`2px solid ${k.hi}` }}>
+            <div style={{ fontFamily:"'JetBrains Mono',monospace", color:'#555', fontSize:7, letterSpacing:'0.08em', marginBottom:4 }}>{k.label}</div>
+            <div style={{ fontFamily:"'JetBrains Mono',monospace", color:k.hi, fontSize:17, fontWeight:700 }}>{k.val}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ padding:'10px 10px 6px' }}>
+        <div style={{ fontFamily:"'JetBrains Mono',monospace", color:'#444', fontSize:7, letterSpacing:'0.1em', marginBottom:7 }}>SPEND BY DIVERSITY CATEGORY — ALL SUPPLIERS</div>
+        {cats.map((c,i) => (
+          <div key={i} style={{ display:'flex', alignItems:'center', gap:5, marginBottom:3.5 }}>
+            <div style={{ fontFamily:"'JetBrains Mono',monospace", width:56, color:'#555', fontSize:7, textAlign:'right', flexShrink:0 }}>{c.label}</div>
+            <div style={{ flex:1, height:8, background:'#252525', overflow:'hidden' }}>
+              <div style={{ width: ready ? `${c.pct}%` : '0%', height:'100%', background: i%2===0 ? '#367C2B' : '#FFDE00', transition:`width 1.1s cubic-bezier(.4,0,.2,1) ${i*0.07}s` }} />
+            </div>
+            <div style={{ fontFamily:"'JetBrains Mono',monospace", width:26, color:'#555', fontSize:7, textAlign:'right' }}>{ready ? c.pct : 0}%</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ padding:'5px 10px 8px', fontFamily:"'JetBrains Mono',monospace", display:'flex', justifyContent:'space-between', borderTop:'1px solid #252525' }}>
+        <span style={{ color:'#3a3a3a', fontSize:7 }}>Databricks · SQL · AWS · ETL pipeline · 70% faster time-to-insight</span>
+        <span style={{ color:'#367C2B', fontSize:7 }}>● LIVE</span>
+      </div>
+    </div>
+  );
+}
+
+function JJEtlDemo() {
+  const nodes = [
+    { label:'Complaint\nRecords', sub:'100K+ raw',      x:52,  y:62, c:'#CC0000' },
+    { label:'PySpark',            sub:'Transform',        x:178, y:62, c:'#E8A000' },
+    { label:'AWS S3',             sub:'Staging',          x:300, y:28, c:'#FF9900' },
+    { label:'PostgreSQL',         sub:'Warehouse',        x:300, y:96, c:'#336791' },
+    { label:'NL→SQL\nDashboard',  sub:'100% consistent', x:430, y:62, c:'#CC0000' },
+  ];
+  const edges = [
+    { id:'jj0', d:'M87,62 L143,62',   c:'#E8A000', dur:'1.7s', ph:['0s','0.85s']   },
+    { id:'jj1', d:'M213,53 L265,34',  c:'#FF9900', dur:'1.3s', ph:['0s','0.65s']   },
+    { id:'jj2', d:'M213,71 L265,90',  c:'#336791', dur:'1.3s', ph:['0.35s','1.0s'] },
+    { id:'jj3', d:'M335,30 L395,55',  c:'#CC0000', dur:'1.4s', ph:['0s','0.7s']    },
+    { id:'jj4', d:'M335,94 L395,69',  c:'#CC0000', dur:'1.4s', ph:['0.45s','1.15s']},
+  ];
+  return (
+    <div style={{ background:'#0d0d0d', borderRadius:3, padding:'10px 10px 8px', fontFamily:"'JetBrains Mono',monospace" }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
+        <span style={{ color:'#CC0000', fontSize:9, letterSpacing:'0.12em' }}>JOHNSON &amp; JOHNSON · ETL PIPELINE</span>
+        <span style={{ color:'#3a3a3a', fontSize:7 }}>PySpark · AWS S3 · PostgreSQL · OpenAI GPT</span>
+      </div>
+      <svg viewBox="0 0 500 130" width="100%" style={{ display:'block' }}>
+        <defs>{edges.map(e => <path key={e.id} id={e.id} d={e.d} fill="none"/>)}</defs>
+        {edges.map(e => <path key={e.id+'-l'} d={e.d} stroke="#2a2a2a" strokeWidth={1.5} strokeDasharray="3 4" fill="none"/>)}
+        {edges.map(e => e.ph.map((begin, di) => (
+          <circle key={`${e.id}-${di}`} r={2.8} fill={e.c} opacity={di===0?0.9:0.55}>
+            <animateMotion dur={e.dur} begin={begin} repeatCount="indefinite">
+              <mpath href={`#${e.id}`}/>
+            </animateMotion>
+          </circle>
+        )))}
+        {nodes.map((n,ni) => (
+          <g key={ni} transform={`translate(${n.x-35},${n.y-22})`}>
+            <rect width={70} height={44} fill="#161616" stroke={n.c} strokeWidth={1} rx={2}/>
+            {n.label.split('\n').map((line,li) => (
+              <text key={li} x={35} y={14+li*11} textAnchor="middle" fill="#ccc" fontSize={7.5} fontFamily="'JetBrains Mono',monospace">{line}</text>
+            ))}
+            <text x={35} y={39} textAnchor="middle" fill={n.c} fontSize={6.5} fontFamily="'JetBrains Mono',monospace">{n.sub}</text>
+          </g>
+        ))}
+      </svg>
+      <div style={{ marginTop:6, display:'flex', justifyContent:'space-between', borderTop:'1px solid #1a1a1a', paddingTop:7 }}>
+        <span style={{ color:'#3a3a3a', fontSize:7 }}>Records: <span style={{ color:'#CC0000' }}>100,000+</span></span>
+        <span style={{ color:'#3a3a3a', fontSize:7 }}>Accuracy: <span style={{ color:'#22c55e' }}>100.0%</span></span>
+        <span style={{ color:'#3a3a3a', fontSize:7 }}>Manual effort: <span style={{ color:'#f59e0b' }}>↓ 85%</span></span>
+        <span style={{ color:'#3a3a3a', fontSize:7 }}>Access: <span style={{ color:'#CC0000' }}>100%</span></span>
+      </div>
+    </div>
+  );
+}
+
+function QualcommDemo() {
+  const LOG_TEMPLATES = [
+    ['ALERT', '#ef4444', 'AUTH_FAILURE',   'host-221.qcom.net'],
+    ['WARN',  '#f59e0b', 'HIGH_CPU_USAGE', 'worker-04.qa.qcom'],
+    ['OK',    '#22c55e', 'HEARTBEAT_OK',   'svc-api-gateway'],
+    ['CRIT',  '#ef4444', 'DISK_FULL',      'log-store-02'],
+    ['OK',    '#22c55e', 'CERT_RENEWED',   'sec-proxy-01'],
+    ['WARN',  '#f59e0b', 'MEM_SPIKE',      'redis-cluster-3'],
+    ['ALERT', '#ef4444', 'SQL_FLOOD',      'db-replica-us-1'],
+    ['OK',    '#22c55e', 'DEPLOY_SUCCESS', 'frontend-v2.3.1'],
+    ['WARN',  '#f59e0b', 'RATE_LIMIT',     'api-edge-node-7'],
+    ['OK',    '#22c55e', 'SSL_CHECK',      'cdn-origin.qcom'],
+  ];
+
+  const [data, setData] = React.useState({ count: 9844, logs: [] });
+
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      setData(prev => {
+        const tpl   = LOG_TEMPLATES[Math.floor(Math.random() * LOG_TEMPLATES.length)];
+        const ts    = new Date().toISOString().slice(11,19);
+        const entry = { level:tpl[0], color:tpl[1], event:tpl[2], ts };
+        return {
+          count: prev.count + Math.floor(Math.random() * 5 + 1),
+          logs:  [entry, ...prev.logs].slice(0, 9),
+        };
+      });
+    }, 700);
+    return () => clearInterval(id);
+  }, []);
+
+  const { count, logs } = data;
+
+  const sevBars = [
+    { label:'Critical', pct:8,  c:'#ef4444' },
+    { label:'High',     pct:23, c:'#f59e0b' },
+    { label:'Medium',   pct:40, c:'#3253DC' },
+    { label:'Low',      pct:29, c:'#22c55e' },
+  ];
+
+  const cards = [
+    { label:'ACTIVE',   val: Math.floor(count / 190), c:'#ef4444' },
+    { label:'RESOLVED', val: Math.floor(count / 175), c:'#22c55e' },
+    { label:'UPTIME',   val:'99.9%',                  c:'#22c55e' },
+  ];
+
+  return (
+    <div style={{ background:'#080812', borderRadius:3, overflow:'hidden', fontFamily:"'JetBrains Mono',monospace" }}>
+      <div style={{ background:'#0f0f20', padding:'7px 10px', borderBottom:'1px solid #1a1a30', display:'flex', alignItems:'center', gap:8 }}>
+        <div style={{ width:8, height:8, borderRadius:'50%', background:'#3253DC', boxShadow:'0 0 6px #3253DC' }} />
+        <span style={{ color:'#7777bb', fontSize:8.5, letterSpacing:'0.1em' }}>QUALCOMM · Integration Alert Platform</span>
+        <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
+          {['React','Spring Boot','MongoDB','REST API'].map(t => (
+            <span key={t} style={{ color:'#3a3a5a', fontSize:7.5, border:'1px solid #1e1e3a', padding:'1px 5px', borderRadius:2 }}>{t}</span>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr' }}>
+        {/* Left: live event stream */}
+        <div style={{ borderRight:'1px solid #12122a', padding:'8px 9px' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:7 }}>
+            <span style={{ color:'#3a3a5a', fontSize:7, letterSpacing:'0.1em' }}>LIVE EVENT STREAM</span>
+            <span style={{ color:'#3253DC', fontSize:10, fontWeight:700, letterSpacing:'-0.02em' }}>
+              {count.toLocaleString()}<span style={{ color:'#3a3a5a', fontSize:7, fontWeight:400 }}> metrics</span>
+            </span>
+          </div>
+          <div style={{ height:110, overflow:'hidden' }}>
+            {logs.map((log,i) => (
+              <div key={i} style={{ display:'flex', gap:4, marginBottom:3.5, opacity: Math.max(0.15, 1 - i * 0.1) }}>
+                <span style={{ color:'#2a2a4a', fontSize:7, flexShrink:0 }}>{log.ts}</span>
+                <span style={{ color:log.color, fontSize:7, flexShrink:0, width:34 }}>{log.level}</span>
+                <span style={{ color:'#555577', fontSize:7, flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.event}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right: React frontend dashboard */}
+        <div style={{ padding:'8px 9px' }}>
+          <div style={{ color:'#3a3a5a', fontSize:7, letterSpacing:'0.1em', marginBottom:7 }}>REACT FRONTEND · ALERTS DASHBOARD</div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:4, marginBottom:8 }}>
+            {cards.map((m,i) => (
+              <div key={i} style={{ background:'#0f0f20', border:`1px solid ${m.c}44`, padding:'5px 6px', borderRadius:2 }}>
+                <div style={{ color:'#3a3a5a', fontSize:6.5, marginBottom:3 }}>{m.label}</div>
+                <div style={{ color:m.c, fontSize:15, fontWeight:700 }}>{m.val}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ color:'#3a3a5a', fontSize:6.5, marginBottom:5, letterSpacing:'0.08em' }}>SEVERITY DISTRIBUTION</div>
+          {sevBars.map((s,i) => (
+            <div key={i} style={{ display:'flex', alignItems:'center', gap:4, marginBottom:3.5 }}>
+              <div style={{ fontFamily:"'JetBrains Mono',monospace", width:36, color:'#3a3a5a', fontSize:6.5, textAlign:'right' }}>{s.label}</div>
+              <div style={{ flex:1, height:5, background:'#1a1a30', overflow:'hidden' }}>
+                <div style={{ width:`${s.pct}%`, height:'100%', background:s.c }} />
+              </div>
+              <div style={{ color:'#3a3a5a', fontSize:6.5, width:18, textAlign:'right' }}>{s.pct}%</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding:'5px 10px', background:'#0f0f20', borderTop:'1px solid #1a1a30', display:'flex', justifyContent:'space-between' }}>
+        <span style={{ color:'#2a2a4a', fontSize:7 }}>AWS EKS · auto-scaling · incident triage ↓ 40% · deploy time ↓ 60%</span>
+        <span style={{ color:'#3253DC', fontSize:7 }}>● MONITORING</span>
+      </div>
+    </div>
+  );
+}
+
+const SKILL_GROUPS = [
+  { label: 'Data & Analytics', items: ['Python','SQL','Power BI','Databricks','PySpark','R','A/B Testing','ETL'] },
+  { label: 'Engineering & Cloud', items: ['AWS','Azure','Docker','Kubernetes','ReactJS','Spring Boot','MongoDB','CI/CD'] },
+  { label: 'AI / ML', items: ['TensorFlow','Keras','OpenAI GPT','LangChain','RAG Pipelines','CNNs','NLP','Airflow'] },
+  { label: 'Tools & Other', items: ['Tableau','Excel','JIRA','Git','Qualtrics API','Scrum (PSM I)','PowerPoint'] },
+];
+
+const WORK_PROJECTS = [
+  {
+    name: 'bioinsight',
+    tag: 'Python',
+    note: 'Genomic and blood data integration app.',
+    url: 'https://github.com/AkshayTallikar/bioinsight',
+  },
+  {
+    name: 'Vedic-Sukta-App',
+    tag: 'TypeScript',
+    note: 'Interactive app built with a modern frontend stack.',
+    url: 'https://github.com/AkshayTallikar/Vedic-Sukta-App',
+  },
+  {
+    name: 'Social-Media-Ostracism-Paradigm',
+    tag: 'JavaScript',
+    note: 'Research experiment interface and interaction flow.',
+    url: 'https://github.com/AkshayTallikar/Social-Media-Ostracism-Paradigm',
+  },
+  {
+    name: 'Recaptcha',
+    tag: 'TensorFlow',
+    note: 'Image classifier using TensorFlow and Keras.',
+    url: 'https://github.com/AkshayTallikar/Recaptcha',
+  },
+  {
+    name: 'Stock-Sentiment-Analysis',
+    tag: 'NLP',
+    note: 'Headline sentiment model for market news.',
+    url: 'https://github.com/AkshayTallikar/Stock-Sentiment-Analysis',
+  },
+  {
+    name: 'Financial-Fraud-detector-neural-network',
+    tag: 'Python',
+    note: 'Neural network for financial fraud detection.',
+    url: 'https://github.com/AkshayTallikar/Financial-Fraud-detector-neural-network',
+  },
+];
+
+function WorkCodeProjects() {
+  const codeLines = [
+    "const portfolio = new ProjectGallery();",
+    "portfolio.connect('github.com/AkshayTallikar');",
+    "portfolio.filter({ type: 'featured', status: 'public' });",
+    "portfolio.compile(['AI', 'data', 'web', 'research']);",
+    "portfolio.deploy('#work-modal');",
+  ];
+  const [lineCount, setLineCount] = React.useState(0);
+  const [showProjects, setShowProjects] = React.useState(false);
+
+  React.useEffect(() => {
+    setLineCount(0);
+    setShowProjects(false);
+    const timers = codeLines.map((_, i) => (
+      setTimeout(() => setLineCount(i + 1), 260 + i * 360)
+    ));
+    timers.push(setTimeout(() => setShowProjects(true), 260 + codeLines.length * 360 + 280));
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  return (
+    <div style={workS.wrap}>
+      <div style={workS.editor}>
+        <div style={workS.editorTop}>
+          <div style={workS.lights}>
+            <span style={{...workS.light, background:'#ff5f56'}} />
+            <span style={{...workS.light, background:'#ffbd2e'}} />
+            <span style={{...workS.light, background:'#27c93f'}} />
+          </div>
+          <div style={workS.file}>work-gallery.jsx</div>
+          <div style={workS.status}>{showProjects ? 'BUILD COMPLETE' : 'WRITING CODE'}</div>
+        </div>
+        <div style={workS.codePane}>
+          {codeLines.slice(0, lineCount).map((line, i) => (
+            <div key={line} style={workS.codeLine}>
+              <span style={workS.lineNo}>{String(i + 1).padStart(2, '0')}</span>
+              <span style={workS.codeText}>{line}</span>
+            </div>
+          ))}
+          {!showProjects && (
+            <div style={workS.codeLine}>
+              <span style={workS.lineNo}>{String(Math.max(1, lineCount + 1)).padStart(2, '0')}</span>
+              <span style={workS.cursor}>|</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{
+        ...workS.projectShell,
+        opacity: showProjects ? 1 : 0,
+        transform: showProjects ? 'translateY(0) scale(1)' : 'translateY(18px) scale(0.96)',
+      }}>
+        <div style={workS.shellHeader}>
+          <span>Model Box · Projects</span>
+          <a
+            href="https://github.com/AkshayTallikar?tab=repositories"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={workS.allRepos}
+          >
+            All repos
+          </a>
+        </div>
+        <div style={workS.grid}>
+          {WORK_PROJECTS.map((project, i) => (
+            <a
+              key={project.name}
+              href={project.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                ...workS.card,
+                animation: showProjects ? `project-pop 0.55s cubic-bezier(.2,1.25,.32,1) ${i * 85}ms both` : 'none',
+              }}
+            >
+              <div style={workS.cardTop}>
+                <span style={workS.projectIndex}>{String(i + 1).padStart(2, '0')}</span>
+                <span style={workS.tag}>{project.tag}</span>
+              </div>
+              <div style={workS.projectName}>{project.name}</div>
+              <div style={workS.projectNote}>{project.note}</div>
+              <div style={workS.openRepo}>Open GitHub repo</div>
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SkillAchievements() {
+  const achievements = React.useMemo(() => (
+    SKILL_GROUPS.flatMap((group, gi) => group.items.map((skill, si) => ({
+      skill,
+      group: group.label,
+      rarity: ['Common', 'Rare', 'Epic', 'Legendary'][(gi + si) % 4],
+      xp: 80 + gi * 45 + si * 15,
+    })))
+  ), []);
+  const [unlocked, setUnlocked] = React.useState(0);
+
+  React.useEffect(() => {
+    setUnlocked(0);
+    const timers = achievements.map((_, i) => (
+      setTimeout(() => setUnlocked(count => Math.max(count, i + 1)), 180 + i * 115)
+    ));
+    return () => timers.forEach(clearTimeout);
+  }, [achievements]);
+
+  return (
+    <div style={skillS.wrap}>
+      <div style={skillS.hud}>
+        <div>
+          <div style={skillS.hudKicker}>Achievement Log</div>
+          <div style={skillS.hudTitle}>{unlocked}/{achievements.length} unlocked</div>
+        </div>
+        <div style={skillS.progressTrack}>
+          <div style={{ ...skillS.progressFill, width: `${(unlocked / achievements.length) * 100}%` }} />
+        </div>
+      </div>
+
+      {SKILL_GROUPS.map((group, gi) => {
+        const prior = SKILL_GROUPS.slice(0, gi).reduce((sum, g) => sum + g.items.length, 0);
+        const visibleItems = group.items
+          .map((skill, si) => ({ skill, si, index: prior + si }))
+          .filter(item => item.index < unlocked);
+        if (!visibleItems.length) return null;
+        return (
+          <div key={group.label} style={skillS.group}>
+            <div style={skillS.groupLabel}>{group.label}</div>
+            <div style={skillS.grid}>
+              {visibleItems.map(({ skill, si, index }) => {
+                const item = achievements[index];
+                return (
+                  <div
+                    key={skill}
+                    style={{
+                      ...skillS.badge,
+                      animation: 'achievement-pop 0.58s cubic-bezier(.2,1.35,.32,1) both',
+                      animationDelay: `${si * 18}ms`,
+                    }}
+                  >
+                    <div style={skillS.badgeIcon}>{String(index + 1).padStart(2, '0')}</div>
+                    <div style={skillS.badgeCopy}>
+                      <div style={skillS.unlocked}>Achievement Unlocked</div>
+                      <div style={skillS.skillName}>{skill}</div>
+                      <div style={skillS.meta}>{item.rarity} · XP +{item.xp}</div>
+                    </div>
+                    <div style={skillS.shine} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SocialProfilePost() {
+  const targetLikes = 12847;
+  const [likes, setLikes] = React.useState(0);
+
+  React.useEffect(() => {
+    let raf;
+    const start = performance.now();
+    const duration = 1900;
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setLikes(Math.floor(targetLikes * eased));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  return (
+    <div style={socialS.wrap}>
+      <div style={socialS.phoneTop}>
+        <span style={socialS.dot} />
+        <span style={socialS.dot} />
+        <span style={socialS.dot} />
+      </div>
+
+      <div style={socialS.post}>
+        <div style={socialS.header}>
+          <img src="assets/profile.jpeg" alt="Akshay Tallikar" style={socialS.avatar} />
+          <div style={{minWidth:0}}>
+            <div style={socialS.name}>akshay.tallikar</div>
+            <div style={socialS.location}>Chicago, IL · LinkedIn only</div>
+          </div>
+          <a
+            href="https://www.linkedin.com/in/akshay-tallikar/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={socialS.follow}
+          >
+            Connect
+          </a>
+        </div>
+
+        <div style={socialS.photoFrame}>
+          <img src="assets/profile.jpeg" alt="Akshay Tallikar profile portrait" style={socialS.photo} />
+          {likes < targetLikes ? (
+            <div style={socialS.likeBurst}>+{Math.max(1, Math.round(likes / 850))}</div>
+          ) : null}
+        </div>
+
+        <div style={socialS.actions}>
+          <span style={socialS.action}>LIKE</span>
+          <span style={socialS.action}>COMMENT</span>
+          <span style={socialS.action}>SHARE</span>
+          <a
+            href="https://www.linkedin.com/in/akshay-tallikar/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={socialS.linkedinAction}
+          >
+            LINKEDIN
+          </a>
+        </div>
+
+        <div style={{
+          ...socialS.likes,
+          animation: likes < targetLikes ? 'social-likes-pop 0.32s ease-out infinite alternate' : 'none',
+        }}>{likes.toLocaleString()} likes</div>
+        <div style={socialS.caption}>
+          <span style={socialS.captionName}>akshay.tallikar</span>
+          Building data systems, AI tools, and clean product experiences.
+        </div>
+        <a
+          href="https://www.linkedin.com/in/akshay-tallikar/"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={socialS.profileLink}
+        >
+          linkedin.com/in/akshay-tallikar/
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function ContactCallEmail() {
+  const [phase, setPhase] = React.useState('ringing');
+  const [form, setForm] = React.useState({ name: '', subject: '', message: '' });
+  const timersRef = React.useRef([]);
+  const completedRef = React.useRef(false);
+
+  const clearCallTimers = () => {
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+  };
+
+  const completeCall = () => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    clearCallTimers();
+    setPhase('email');
+  };
+
+  React.useEffect(() => {
+    timersRef.current = [
+      setTimeout(() => {
+        if (!completedRef.current) setPhase('answered');
+      }, 1800),
+      setTimeout(completeCall, 2650),
+    ];
+    return clearCallTimers;
+  }, []);
+
+  const mailSubject = form.subject.trim() || 'Portfolio inquiry';
+  const body = [
+    `Name: ${form.name.trim() || 'Not provided'}`,
+    '',
+    form.message.trim(),
+  ].join('\n');
+  const mailto = `mailto:tallikarakshay@gmail.com?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(body)}`;
+  const canSend = form.name.trim() && form.subject.trim() && form.message.trim();
+
+  return (
+    <div style={contactS.wrap}>
+      {phase !== 'email' ? (
+        <div style={contactS.callStage}>
+          <div style={contactS.phone}>
+            <div style={contactS.speaker} />
+            <div style={contactS.callScreen}>
+              <div style={contactS.callLabel}>{phase === 'ringing' ? 'Incoming call' : 'Connected'}</div>
+              <div style={contactS.caller}>Akshay Tallikar</div>
+              <div style={contactS.callSub}>{phase === 'ringing' ? 'Portfolio line' : 'Opening email channel'}</div>
+              <div style={contactS.avatarRing}>
+                <div style={contactS.avatarInitials}>AT</div>
+              </div>
+            </div>
+            <div style={contactS.callControls}>
+              <button
+                type="button"
+                onClick={completeCall}
+                style={{...contactS.callBtn, ...contactS.acceptBtn}}
+              >
+                Pick up
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={contactS.emailPanel}>
+          <div style={contactS.emailTop}>
+            <div>
+              <div style={contactS.emailKicker}>Call picked up</div>
+              <div style={contactS.emailTitle}>Send Akshay an email</div>
+            </div>
+            <div style={contactS.emailTo}>TO · tallikarakshay@gmail.com</div>
+          </div>
+
+          <form
+            style={contactS.form}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!canSend) return;
+              window.location.href = mailto;
+            }}
+          >
+            <label style={contactS.label}>
+              Your name
+              <input
+                required
+                value={form.name}
+                onChange={(e) => setForm(v => ({ ...v, name: e.target.value }))}
+                placeholder="Jane Doe"
+                style={contactS.input}
+              />
+            </label>
+            <label style={contactS.label}>
+              Subject
+              <input
+                required
+                value={form.subject}
+                onChange={(e) => setForm(v => ({ ...v, subject: e.target.value }))}
+                placeholder="Project opportunity"
+                style={contactS.input}
+              />
+            </label>
+            <label style={contactS.label}>
+              Message
+              <textarea
+                required
+                value={form.message}
+                onChange={(e) => setForm(v => ({ ...v, message: e.target.value }))}
+                placeholder="Tell me what you are building..."
+                style={contactS.textarea}
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={!canSend}
+              style={{
+                ...contactS.send,
+                opacity: canSend ? 1 : 0.48,
+                cursor: canSend ? 'pointer' : 'not-allowed',
+              }}
+            >
+              Open email app
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const BTS_ITEMS = [
+  { tag: '01 / Listen', title: 'Clarify First', note: 'I start by making sure the team agrees on the real problem, the users affected, and what success should look like.' },
+  { tag: '02 / Map', title: 'Split The Work', note: 'I break messy technical problems into owners, dependencies, risks, and fast checkpoints so nobody is blocked in silence.' },
+  { tag: '03 / Build', title: 'Prototype Early', note: 'I like getting a thin working version in front of the group quickly, then using feedback to decide what deserves more depth.' },
+  { tag: '04 / Communicate', title: 'Keep The Loop Tight', note: 'I share tradeoffs, weird findings, and next steps clearly so teammates can make decisions without digging through the whole codebase.' },
+  { tag: '05 / Validate', title: 'Finish With Evidence', note: 'Before calling it done, I test assumptions, check edge cases, document what changed, and make the handoff easy for the next person.' },
+];
+
+function BehindTheScenesArchive() {
+  const [active, setActive] = React.useState(0);
+  React.useEffect(() => {
+    const timers = BTS_ITEMS.map((_, i) => setTimeout(() => setActive(i), 900 + i * 1650));
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  return (
+    <div style={btsS.wrap}>
+      <p style={mS.lead}>A quick flip through how the work gets made.</p>
+
+      <div style={btsS.desk}>
+        <div style={btsS.stack}>
+          {BTS_ITEMS.map((item, i) => {
+            const isActive = i === active;
+            const isPast = i < active;
+            return (
+              <div
+                key={item.title}
+                style={{
+                  ...btsS.paper,
+                  zIndex: isActive ? 20 : BTS_ITEMS.length - i,
+                  transform: isActive
+                    ? 'translate(-50%, -50%) rotate(0deg) scale(1)'
+                    : isPast
+                      ? `translate(calc(-50% - ${120 + i * 8}px), calc(-50% + ${28 + i * 6}px)) rotate(${-10 - i * 3}deg) scale(0.9)`
+                      : `translate(calc(-50% + ${22 + i * 10}px), calc(-50% + ${18 + i * 5}px)) rotate(${4 + i * 3}deg) scale(${0.94 - i * 0.02})`,
+                  opacity: isPast ? 0.42 : 1,
+                  animation: isActive ? 'bts-flip 1.3s cubic-bezier(.22,.61,.36,1) both' : 'none',
+                }}
+              >
+                <div style={btsS.paperTag}>{item.tag}</div>
+                <div style={btsS.paperTitle}>{item.title}</div>
+                <div style={btsS.paperRule} />
+                <div style={btsS.paperNote}>{item.note}</div>
+                <div style={btsS.paperMarks}>
+                  <span style={{...btsS.paperMark, width:'86%'}} />
+                  <span style={{...btsS.paperMark, width:'72%'}} />
+                  <span style={{...btsS.paperMark, width:'54%'}} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={btsS.timeline}>
+        {BTS_ITEMS.map((item, i) => (
+          <button
+            key={item.title}
+            type="button"
+            onClick={() => setActive(i)}
+            style={{
+              ...btsS.timelineItem,
+              ...(i === active ? btsS.timelineActive : {}),
+            }}
+          >
+            {item.title}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const SECTION_CONTENT = {
+  about: {
+    title: 'About', index: '01',
+    body: () => (
+      <div>
+        <p style={mS.lead}>I'm Akshay, a data and software engineer with a mathematics background, based in the Chicago area.</p>
+        <p style={mS.p}>I studied Mathematics at Ohio State, which trained me to think structurally about problems before ever writing a line of code. That instinct carried through three Fortune 500 internships: building supply chain visibility dashboards at John Deere, engineering AI-powered complaint-processing pipelines at Johnson & Johnson, and shipping a real-time security metrics platform at Qualcomm. Each one taught me something different about what it means to build at scale.</p>
+        <p style={mS.p}>I'm most drawn to the overlap between data engineering and software: designing ETL pipelines, wiring up ML models to real applications, and surfacing insights through clean interfaces. I reach for Python, SQL, PySpark, and React most often, and I've deployed across AWS and Azure. Lately I've been digging deeper into LLM tooling and GenAI applications.</p>
+        <p style={mS.p}>I'm looking for full-time roles in data engineering, analytics engineering, or software engineering. Somewhere with real data problems and a team that cares about doing the work well.</p>
+        <div style={mS.metaRow}>
+          <div><span style={mS.metaLabel}>Based</span>Chicago, IL area</div>
+          <div><span style={mS.metaLabel}>Focus</span>Data & Software Engineering</div>
+          <div><span style={mS.metaLabel}>Status</span>Open to full-time roles</div>
+        </div>
+      </div>
+    ),
+  },
+  work: {
+    title: 'Work', index: '02',
+    body: () => <WorkCodeProjects />,
+  },
+  experience: {
+    title: 'Experience', index: '03',
+    body: () => (
+      <div>
+        <p style={mS.lead}>Fortune 500 data engineering & software — real projects, real scale.</p>
+
+        <div style={mS.expRow}>
+          <div style={mS.expYr}>Feb 2024 — Dec 2025</div>
+          <div>
+            <div style={mS.expRole}>Data Analytics<span style={mS.expCo}> — John Deere</span></div>
+            <div style={mS.expNote}>Power BI dashboards · Databricks + SQL + AWS ETL · $10B+ supply chain visibility · 70% faster time-to-insight</div>
+          </div>
+        </div>
+        <div style={{ marginBottom:24 }}><JohnDeereDemo /></div>
+
+        <div style={mS.expRow}>
+          <div style={mS.expYr}>Aug — Dec 2024</div>
+          <div>
+            <div style={mS.expRole}>Data Science Co-Op<span style={mS.expCo}> — Johnson & Johnson</span></div>
+            <div style={mS.expNote}>PySpark ETL · 100K+ complaint records · GenAI NL→SQL dashboard · 85% less manual effort</div>
+          </div>
+        </div>
+        <div style={{ marginBottom:24 }}><JJEtlDemo /></div>
+
+        <div style={mS.expRow}>
+          <div style={mS.expYr}>May — Aug 2023</div>
+          <div>
+            <div style={mS.expRole}>IT Software Engineer Intern<span style={mS.expCo}> — Qualcomm</span></div>
+            <div style={mS.expNote}>React + Spring Boot + MongoDB · 10,000+ real-time security metrics · incident triage ↓ 40%</div>
+          </div>
+        </div>
+        <div style={{ marginBottom:24 }}><QualcommDemo /></div>
+
+        <div style={mS.expRow}>
+          <div style={mS.expYr}>2021 — 2025</div>
+          <div>
+            <div style={mS.expRole}>B.S. Mathematics<span style={mS.expCo}> — Ohio State University</span></div>
+            <div style={mS.expNote}>Data Analytics track · Computational Mathematics · PSM I Certified</div>
+          </div>
+        </div>
+      </div>
+    ),
+  },
+  resume: {
+    title: 'Résumé', index: '04',
+    body: () => (
+      <div>
+        <div style={{textAlign:'center',marginBottom:28,paddingBottom:20,borderBottom:'2px solid #1a3a6b'}}>
+          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:36,fontWeight:600,letterSpacing:'0.18em',textTransform:'uppercase',color:'#1a3a6b'}}>Akshay Tallikar</div>
+          <div style={{fontSize:12,marginTop:8,color:'#444',fontFamily:"'Inter',sans-serif"}}>224-717-9910 · tallikarakshay@gmail.com · linkedin.com/in/akshay-tallikar · Port Barrington, IL</div>
+        </div>
+
+        <div style={{marginBottom:20}}>
+          <div style={rS.sectionHead}>Professional Summary</div>
+          <p style={rS.body}>Recent Ohio State mathematics graduate with 2+ years of experience building enterprise data solutions at Fortune 500 companies (John Deere, Johnson &amp; Johnson, Qualcomm). Proven track record delivering dashboards, ETL pipelines, and full-stack applications that drive measurable business outcomes.</p>
+        </div>
+
+        <div style={{marginBottom:20}}>
+          <div style={rS.sectionHead}>Education</div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+            <div><span style={rS.org}>The Ohio State University</span><span style={rS.loc}> — Columbus, OH</span></div>
+            <span style={rS.date}>December 2025</span>
+          </div>
+          <div style={rS.role}>B.S. Mathematics — Data Analytics &amp; Computational Coursework</div>
+          <div style={rS.note}>Relevant Coursework: Databases, Data Structures &amp; Algorithms, Machine Learning, Statistical Analysis, Financial Mathematics</div>
+        </div>
+
+        <div style={{marginBottom:20}}>
+          <div style={rS.sectionHead}>Technical Skills</div>
+          <div style={rS.body}><strong>Data &amp; Analytics:</strong> Python, R, SQL, Power BI, Databricks, PySpark, A/B Testing, Data Modeling, ETL</div>
+          <div style={rS.body}><strong>Engineering &amp; Cloud:</strong> AWS, Azure, Docker, Kubernetes, CI/CD, ReactJS, Java, Spring Boot, MongoDB</div>
+          <div style={rS.body}><strong>AI/ML &amp; Orchestration:</strong> TensorFlow/Keras, OpenAI GPT, LangChain, RAG Pipelines, CNNs, NLP, Airflow</div>
+          <div style={rS.body}><strong>Other:</strong> Excel, Tableau, PowerPoint, Qualtrics API, JIRA</div>
+        </div>
+
+        <div style={{marginBottom:20}}>
+          <div style={rS.sectionHead}>Professional Experience</div>
+          {[
+            { org:'John Deere', loc:'Remote, IL', role:'Data Analytics — Part-Time Student', date:'Feb. 2024 – Dec. 2025', bullets:[
+              'Built Power BI Supplier Diversity Dashboard transforming 15+ data tables to slice $10B+ in supplier spend across 11 diversity categories — became primary compliance tool.',
+              'Engineered ETL pipeline in Databricks + SQL + AWS processing WalkMe behavioral analytics with 99% accuracy, cutting time-to-insight by 70%.',
+              'Developed Power BI Forecast Dashboard aggregating 1B+ row dataset for 20+ stakeholders with 100% data reliability.',
+              'Created employee search tool enabling simultaneous search across 100,000+ records, reducing UX research time by 75%.',
+            ]},
+            { org:'Johnson & Johnson', loc:'Cincinnati, OH', role:'Data Science Co-Op', date:'Aug. 2024 – Dec. 2024', bullets:[
+              'Architected GenAI natural-language-to-SQL dashboard generator using Python, Streamlit, OpenAI GPT, and PostgreSQL (RAG pipeline) — demoed to expand data access to 100% of non-technical workforce.',
+              'Built scalable ETL pipeline with PySpark, SQL, and AWS S3 to process 100,000+ complaint records, achieving 100% data consistency and cutting manual effort by 85%.',
+              'Enhanced mdrisk R package with 15+ new features, improving medical device risk calculation accuracy by 25%.',
+            ]},
+            { org:'Qualcomm', loc:'San Diego, CA', role:'IT Software Engineer Intern', date:'May 2023 – Aug. 2023', bullets:[
+              'Built full-stack Integration Alert Platform (React + Spring Boot + MongoDB + REST API) monitoring 10,000+ real-time metrics — reduced incident triage time by 40%.',
+              'Containerized application using AWS EKS with auto-scaling, cutting deployment time by 60% and maintaining 99.9% uptime.',
+            ]},
+            { org:'Expedia Group', loc:'Remote', role:'Competitive Intelligence & Strategy Extern', date:'Apr. 2024 – May 2024', bullets:[
+              'Analyzed pricing and GTM strategies across 15+ retail media networks; quantified 3 market gaps and modeled a fee structure projected to capture 85% of target segment.',
+            ]},
+          ].map((e,i) => (
+            <div key={i} style={{marginBottom:16}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                <span style={rS.org}>{e.org}</span><span style={rS.loc}> — {e.loc}</span>
+                <span style={rS.date}>{e.date}</span>
+              </div>
+              <div style={rS.role}>{e.role}</div>
+              {e.bullets.map((b,j) => <div key={j} style={rS.bullet}>• {b}</div>)}
+            </div>
+          ))}
+        </div>
+
+        <div style={{marginBottom:20}}>
+          <div style={rS.sectionHead}>Projects</div>
+          <div style={{marginBottom:8}}><span style={rS.org}>Google reCAPTCHA Image Classifier</span> <span style={rS.role2}>TensorFlow · Keras · CNN</span><div style={rS.bullet}>• Trained a 7-layer CNN achieving 92.2% test accuracy — outperforming baseline models by 12pp.</div></div>
+          <div><span style={rS.org}>Stock Sentiment Analysis</span> <span style={rS.role2}>Python · NLP · Neural Networks</span><div style={rS.bullet}>• Built neural network on 75,000+ financial headlines to predict sentiment polarity with 85% accuracy.</div></div>
+        </div>
+
+        <div>
+          <div style={rS.sectionHead}>Leadership &amp; Involvement</div>
+          <div style={rS.bullet}>• Ohio State Mathematics Contest in Modeling — Led 3-person team; secured top-tier ranking.</div>
+          <div style={rS.bullet}>• Ohio State Translational Data Analytics Institute — Active participant in 15+ industry workshops.</div>
+          <div style={rS.bullet}>• Professional Scrum Master (PSM I) Certified</div>
+        </div>
+      </div>
+    ),
+  },
+  skills: {
+    title: 'Skills', index: '05',
+    body: () => (
+        <div>
+          <p style={mS.lead}>Skills collected across data, engineering, cloud, and AI work.</p>
+          <SkillAchievements />
+        </div>
+    ),
+  },
+  social: {
+    title: 'Social', index: '06',
+    body: () => <SocialProfilePost />,
+  },
+  contact: {
+    title: 'Contact', index: '07',
+    body: () => <ContactCallEmail />,
+  },
+  photography: {
+    title: 'Behind The Scenes', index: '08',
+    body: () => <BehindTheScenesArchive />,
+  },
+};
+
+const rS = {
+  sectionHead: { fontFamily:"'Inter',sans-serif", fontSize:11, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:'#1a3a6b', borderBottom:'1px solid #1a3a6b', paddingBottom:4, marginBottom:10 },
+  org: { fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:600, color:'#000' },
+  loc: { fontFamily:"'Inter',sans-serif", fontSize:13, color:'#555' },
+  date: { fontFamily:"'Inter',sans-serif", fontSize:12, color:'#666', whiteSpace:'nowrap', marginLeft:8 },
+  role: { fontFamily:"'Inter',sans-serif", fontSize:13, color:'#1a3a6b', fontWeight:500, marginTop:2, marginBottom:4 },
+  role2: { fontFamily:"'Inter',sans-serif", fontSize:11, color:'#1a3a6b', fontWeight:500, marginLeft:6 },
+  body: { fontSize:13, lineHeight:1.6, color:'#222', marginBottom:4 },
+  note: { fontSize:12, lineHeight:1.5, color:'#666', marginTop:2 },
+  bullet: { fontSize:12.5, lineHeight:1.6, color:'#333', paddingLeft:4, marginBottom:2 },
+};
+
+const mS = {
+  lead: { fontFamily:"'Cormorant Garamond',serif", fontSize:24, lineHeight:1.4, fontStyle:'italic', marginBottom:24, fontWeight:400 },
+  p: { fontSize:15, lineHeight:1.7, marginBottom:14, maxWidth:'62ch', opacity:0.85 },
+  metaRow: { display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:20, marginTop:36, paddingTop:24, borderTop:'1px solid rgba(128,128,128,0.18)', fontSize:13 },
+  metaLabel: { display:'block', fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.12em', textTransform:'uppercase', opacity:0.5, marginBottom:4 },
+  workRow: { display:'flex', alignItems:'baseline', gap:20, padding:'18px 0', borderBottom:'1px solid rgba(128,128,128,0.15)' },
+  workYr: { fontFamily:"'JetBrains Mono',monospace", fontSize:11, opacity:0.4, width:44, flexShrink:0 },
+  workName: { fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:500 },
+  workNote: { fontSize:13, opacity:0.6, marginTop:2 },
+  workRole: { fontSize:11, fontFamily:"'JetBrains Mono',monospace", letterSpacing:'0.08em', textTransform:'uppercase', opacity:0.5 },
+  expRow: { display:'grid', gridTemplateColumns:'140px 1fr', gap:24, padding:'18px 0', borderBottom:'1px solid rgba(128,128,128,0.15)' },
+  expYr: { fontFamily:"'JetBrains Mono',monospace", fontSize:11, opacity:0.5, paddingTop:4, letterSpacing:'0.05em' },
+  expRole: { fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:500 },
+  expCo: { fontStyle:'italic', opacity:0.7, fontSize:18 },
+  expNote: { fontSize:13, opacity:0.65, marginTop:4, lineHeight:1.5 },
+  resumeCard: { border:'1px solid rgba(128,128,128,0.18)', padding:36, marginTop:12, marginBottom:20, background:'rgba(128,128,128,0.05)' },
+  btn: { fontFamily:"'JetBrains Mono',monospace", fontSize:11, letterSpacing:'0.14em', textTransform:'uppercase', padding:'14px 22px', background:'#000', color:'#fff', border:'none', cursor:'pointer' },
+  socialRow: { display:'flex', justifyContent:'space-between', alignItems:'baseline', padding:'20px 0', borderBottom:'1px solid rgba(128,128,128,0.15)', fontFamily:"'Cormorant Garamond',serif", fontSize:22, color:'inherit', textDecoration:'none' },
+  socialHandle: { fontFamily:"'JetBrains Mono',monospace", fontSize:12, opacity:0.6, letterSpacing:'0.04em' },
+  emailCard: { padding:'24px 28px', background:'rgba(128,128,128,0.05)', border:'1px solid rgba(128,128,128,0.18)', marginBottom:16 },
+  textarea: { width:'100%', minHeight:120, padding:18, fontFamily:"'Cormorant Garamond',serif", fontSize:18, background:'transparent', border:'1px solid rgba(128,128,128,0.25)', resize:'vertical', marginBottom:14, color:'inherit', outline:'none' },
+  photoGrid: { display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginTop:18 },
+  photoFig: { margin:0, position:'relative' },
+  photoPh: { width:'100%', height:'100%', display:'flex', alignItems:'flex-end', padding:10, color:'rgba(255,255,255,0.7)' },
+  photoCap: { fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase' },
+};
+
+const workS = {
+  wrap: { display:'grid', gap:18 },
+  editor: {
+    background:'#070b0f', color:'#d7fbe8', border:'1px solid rgba(34,197,94,0.28)',
+    borderRadius:8, overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.24)',
+    animation:'code-terminal-in 0.55s cubic-bezier(.22,.61,.36,1) both',
+  },
+  editorTop: {
+    height:38, display:'grid', gridTemplateColumns:'72px 1fr auto', alignItems:'center',
+    gap:10, padding:'0 12px', background:'#0f151b', borderBottom:'1px solid rgba(255,255,255,0.08)',
+    fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase',
+  },
+  lights: { display:'flex', gap:6 },
+  light: { width:9, height:9, borderRadius:'50%', display:'block' },
+  file: { color:'#f7fff8', opacity:0.74 },
+  status: { color:'#67e08d', fontSize:9 },
+  codePane: { minHeight:170, padding:'16px 0', fontFamily:"'JetBrains Mono',monospace", fontSize:12, lineHeight:1.85 },
+  codeLine: { display:'grid', gridTemplateColumns:'52px 1fr', gap:8, padding:'0 18px' },
+  lineNo: { color:'rgba(255,255,255,0.28)', textAlign:'right', userSelect:'none' },
+  codeText: { color:'#d8fce8', whiteSpace:'pre-wrap', overflowWrap:'anywhere' },
+  cursor: { color:'#f2c94c', animation:'code-cursor-blink 0.75s steps(1) infinite' },
+  projectShell: {
+    background:'linear-gradient(135deg,#fbfff6,#f5f7fb)', color:'#071008',
+    border:'1px solid rgba(0,0,0,0.12)', borderRadius:8, overflow:'hidden',
+    transition:'opacity 0.42s ease-out, transform 0.55s cubic-bezier(.22,.61,.36,1)',
+    boxShadow:'0 24px 70px rgba(0,0,0,0.16)',
+  },
+  shellHeader: {
+    display:'flex', justifyContent:'space-between', alignItems:'center', gap:12,
+    padding:'14px 16px', background:'#111', color:'#fff',
+    fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.14em', textTransform:'uppercase',
+  },
+  allRepos: { color:'#67e08d', textDecoration:'none', whiteSpace:'nowrap' },
+  grid: { display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))', gap:1, background:'rgba(0,0,0,0.1)' },
+  card: {
+    minHeight:158, display:'flex', flexDirection:'column', gap:9, padding:15,
+    background:'#fff', color:'#071008', textDecoration:'none',
+    border:'none', overflow:'hidden', willChange:'transform,opacity',
+  },
+  cardTop: { display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 },
+  projectIndex: { fontFamily:"'JetBrains Mono',monospace", fontSize:10, opacity:0.38 },
+  tag: {
+    fontFamily:"'JetBrains Mono',monospace", fontSize:9, letterSpacing:'0.08em',
+    textTransform:'uppercase', padding:'4px 7px', border:'1px solid rgba(10,102,194,0.26)',
+    color:'#0a66c2', borderRadius:8, whiteSpace:'nowrap',
+  },
+  projectName: { fontFamily:"'Cormorant Garamond',serif", fontSize:23, lineHeight:1.02, fontWeight:600, overflowWrap:'anywhere' },
+  projectNote: { fontSize:12.5, lineHeight:1.45, opacity:0.66, flex:1 },
+  openRepo: {
+    fontFamily:"'JetBrains Mono',monospace", fontSize:9, letterSpacing:'0.1em',
+    textTransform:'uppercase', color:'#166534',
+  },
+};
+
+const skillS = {
+  wrap: { position:'relative', overflow:'hidden', padding:'2px 0 10px' },
+  hud: {
+    display:'grid', gridTemplateColumns:'minmax(170px,1fr) minmax(140px,220px)',
+    alignItems:'end', gap:18, marginBottom:24, padding:'14px 16px',
+    background:'linear-gradient(135deg,rgba(0,0,0,0.92),rgba(16,24,18,0.94))',
+    border:'1px solid rgba(22,163,74,0.42)', color:'#f7fff8',
+    boxShadow:'0 16px 40px rgba(0,0,0,0.18), inset 0 0 0 1px rgba(255,255,255,0.05)',
+  },
+  hudKicker: { fontFamily:"'JetBrains Mono',monospace", fontSize:9, letterSpacing:'0.16em', textTransform:'uppercase', color:'#67e08d', marginBottom:4 },
+  hudTitle: { fontFamily:"'Cormorant Garamond',serif", fontSize:27, lineHeight:1, fontStyle:'italic' },
+  progressTrack: { height:8, border:'1px solid rgba(255,255,255,0.22)', background:'rgba(255,255,255,0.08)', overflow:'hidden' },
+  progressFill: { height:'100%', background:'linear-gradient(90deg,#22c55e,#f2c94c)', transition:'width 0.22s ease-out', boxShadow:'0 0 18px rgba(34,197,94,0.45)' },
+  group: { marginBottom:26 },
+  groupLabel: { fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.14em', textTransform:'uppercase', opacity:0.5, marginBottom:12 },
+  grid: { display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))', gap:10 },
+  badge: {
+    position:'relative', minHeight:74, display:'grid', gridTemplateColumns:'42px 1fr',
+    alignItems:'center', gap:10, padding:'12px 13px',
+    background:'linear-gradient(135deg,#fbfff6,#eef8ed)', color:'#071008',
+    border:'1px solid rgba(22,101,52,0.24)',
+    boxShadow:'0 10px 22px rgba(0,0,0,0.1), inset 0 0 0 1px rgba(255,255,255,0.68)',
+    overflow:'hidden', willChange:'transform,opacity',
+  },
+  badgeIcon: {
+    width:38, height:38, display:'flex', alignItems:'center', justifyContent:'center',
+    background:'#102016', color:'#f2c94c', border:'1px solid rgba(242,201,76,0.55)',
+    fontFamily:"'JetBrains Mono',monospace", fontSize:11, letterSpacing:'0.06em',
+    boxShadow:'0 0 0 4px rgba(34,197,94,0.08)',
+  },
+  badgeCopy: { minWidth:0 },
+  unlocked: { fontFamily:"'JetBrains Mono',monospace", fontSize:8, letterSpacing:'0.13em', textTransform:'uppercase', color:'#166534', marginBottom:4, whiteSpace:'nowrap' },
+  skillName: { fontFamily:"'Inter',sans-serif", fontSize:15, fontWeight:600, lineHeight:1.15, overflowWrap:'anywhere' },
+  meta: { fontFamily:"'JetBrains Mono',monospace", fontSize:9, letterSpacing:'0.06em', textTransform:'uppercase', opacity:0.52, marginTop:5 },
+  shine: {
+    position:'absolute', inset:'-45% auto -45% -30%', width:'28%',
+    background:'linear-gradient(90deg,transparent,rgba(255,255,255,0.7),transparent)',
+    transform:'rotate(18deg)', animation:'achievement-shine 1.45s ease-out both',
+  },
+};
+
+const socialS = {
+  wrap: { position:'relative', display:'flex', justifyContent:'center', padding:'2px 0 18px' },
+  phoneTop: {
+    position:'absolute', width:'min(330px,100%)', height:16, marginTop:-2,
+    display:'flex', gap:5, alignItems:'center', paddingLeft:14, opacity:0.55,
+  },
+  dot: { width:5, height:5, borderRadius:'50%', background:'currentColor', display:'inline-block' },
+  post: {
+    width:'min(330px,100%)', background:'#fff', color:'#111',
+    border:'1px solid rgba(0,0,0,0.12)', borderRadius:8,
+    boxShadow:'0 24px 80px rgba(0,0,0,0.18)',
+    overflow:'hidden', animation:'social-card-in 0.62s cubic-bezier(.22,.61,.36,1) both',
+  },
+  header: { display:'grid', gridTemplateColumns:'42px 1fr auto', alignItems:'center', gap:10, padding:'14px 14px 12px' },
+  avatar: { width:38, height:38, borderRadius:'50%', objectFit:'cover', border:'1px solid rgba(0,0,0,0.12)' },
+  name: { fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:700, lineHeight:1.1 },
+  location: { fontFamily:"'JetBrains Mono',monospace", fontSize:9, letterSpacing:'0.06em', textTransform:'uppercase', opacity:0.52, marginTop:3, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' },
+  follow: {
+    fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase',
+    color:'#0a66c2', textDecoration:'none', border:'1px solid rgba(10,102,194,0.32)',
+    padding:'7px 10px', borderRadius:8, fontWeight:700,
+  },
+  photoFrame: { position:'relative', aspectRatio:'1 / 1', background:'#f3f3f3', overflow:'hidden' },
+  photo: { width:'100%', height:'100%', objectFit:'cover', display:'block', animation:'social-photo-settle 1s cubic-bezier(.22,.61,.36,1) both' },
+  likeBurst: {
+    position:'absolute', left:'50%', top:'50%', transform:'translate(-50%,-50%)',
+    minWidth:82, height:82, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center',
+    background:'rgba(255,255,255,0.88)', color:'#e11d48', border:'1px solid rgba(225,29,72,0.18)',
+    fontFamily:"'JetBrains Mono',monospace", fontSize:15, fontWeight:700,
+    boxShadow:'0 18px 44px rgba(0,0,0,0.18)',
+    animation:'social-like-pulse 0.48s ease-out infinite',
+  },
+  actions: { display:'flex', alignItems:'center', gap:14, padding:'13px 14px 7px' },
+  action: { fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.1em', opacity:0.72 },
+  linkedinAction: {
+    marginLeft:'auto', fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.1em',
+    color:'#0a66c2', textDecoration:'none', fontWeight:700,
+  },
+  likes: { padding:'0 14px', fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:800 },
+  caption: { padding:'8px 14px 2px', fontSize:13, lineHeight:1.45 },
+  captionName: { fontWeight:800, marginRight:6 },
+  profileLink: {
+    display:'block', padding:'4px 14px 16px', color:'#0a66c2', textDecoration:'none',
+    fontFamily:"'JetBrains Mono',monospace", fontSize:11, letterSpacing:'0.02em', overflowWrap:'anywhere',
+  },
+};
+
+const contactS = {
+  wrap: { minHeight:480, display:'flex', alignItems:'center', justifyContent:'center' },
+  callStage: { width:'min(360px,100%)', display:'flex', justifyContent:'center', animation:'contact-stage-in 0.5s ease-out both' },
+  phone: {
+    width:260, minHeight:430, padding:'14px 14px 20px', borderRadius:8,
+    background:'linear-gradient(160deg,#0c1016,#171d24)', color:'#fff',
+    border:'1px solid rgba(255,255,255,0.12)', boxShadow:'0 28px 90px rgba(0,0,0,0.32)',
+    animation:'phone-ring 0.44s ease-in-out 0s 4',
+  },
+  speaker: { width:54, height:4, margin:'0 auto 18px', borderRadius:8, background:'rgba(255,255,255,0.2)' },
+  callScreen: { minHeight:300, display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center', paddingTop:18 },
+  callLabel: { fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.16em', textTransform:'uppercase', color:'#67e08d', marginBottom:12 },
+  caller: { fontFamily:"'Cormorant Garamond',serif", fontSize:36, lineHeight:1, fontStyle:'italic' },
+  callSub: { fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.1em', textTransform:'uppercase', opacity:0.48, marginTop:8 },
+  avatarRing: {
+    width:120, height:120, borderRadius:'50%', marginTop:34, display:'flex', alignItems:'center', justifyContent:'center',
+    border:'1px solid rgba(103,224,141,0.36)', boxShadow:'0 0 0 0 rgba(103,224,141,0.38)',
+    animation:'contact-pulse 1.25s ease-out infinite',
+  },
+  avatarInitials: {
+    width:88, height:88, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center',
+    background:'#f7fff8', color:'#102016', fontFamily:"'JetBrains Mono',monospace", fontSize:22, letterSpacing:'0.08em',
+  },
+  callControls: { display:'flex', justifyContent:'center', gap:12 },
+  callBtn: {
+    border:'none', borderRadius:8, padding:'13px 20px', cursor:'pointer',
+    fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.12em', textTransform:'uppercase',
+  },
+  acceptBtn: { background:'#22c55e', color:'#071008', boxShadow:'0 12px 28px rgba(34,197,94,0.22)' },
+  emailPanel: {
+    width:'min(540px,100%)', padding:20, borderRadius:8,
+    background:'linear-gradient(135deg,#ffffff,#f4f8f6)', color:'#071008',
+    border:'1px solid rgba(0,0,0,0.12)', boxShadow:'0 26px 80px rgba(0,0,0,0.2)',
+    animation:'email-panel-in 0.65s cubic-bezier(.22,.61,.36,1) both',
+  },
+  emailTop: { display:'flex', justifyContent:'space-between', gap:18, alignItems:'flex-start', paddingBottom:16, borderBottom:'1px solid rgba(0,0,0,0.1)', marginBottom:16 },
+  emailKicker: { fontFamily:"'JetBrains Mono',monospace", fontSize:9, letterSpacing:'0.16em', textTransform:'uppercase', color:'#166534', marginBottom:5 },
+  emailTitle: { fontFamily:"'Cormorant Garamond',serif", fontSize:30, lineHeight:1, fontStyle:'italic' },
+  emailTo: { fontFamily:"'JetBrains Mono',monospace", fontSize:9, letterSpacing:'0.08em', textTransform:'uppercase', opacity:0.48, textAlign:'right', paddingTop:5 },
+  form: { display:'grid', gap:12 },
+  label: { display:'grid', gap:6, fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.12em', textTransform:'uppercase', opacity:0.72 },
+  input: {
+    width:'100%', border:'1px solid rgba(0,0,0,0.16)', borderRadius:8, padding:'13px 14px',
+    fontFamily:"'Inter',sans-serif", fontSize:14, color:'#071008', background:'#fff', outline:'none',
+  },
+  textarea: {
+    width:'100%', minHeight:120, border:'1px solid rgba(0,0,0,0.16)', borderRadius:8, padding:'13px 14px',
+    fontFamily:"'Inter',sans-serif", fontSize:14, lineHeight:1.5, color:'#071008', background:'#fff',
+    outline:'none', resize:'vertical',
+  },
+  send: {
+    display:'inline-flex', alignItems:'center', justifyContent:'center', justifySelf:'start',
+    marginTop:4, padding:'14px 18px', borderRadius:8, background:'#071008', color:'#fff',
+    border:'none',
+    textDecoration:'none', fontFamily:"'JetBrains Mono',monospace", fontSize:10,
+    letterSpacing:'0.14em', textTransform:'uppercase', transition:'opacity 0.2s, transform 0.2s',
+  },
+};
+
+const btsS = {
+  wrap: { display:'grid', gap:18 },
+  desk: {
+    position:'relative', minHeight:360, borderRadius:8, overflow:'hidden',
+    background:'linear-gradient(135deg,#17110c,#2a1a10 55%,#120e0b)',
+    border:'1px solid rgba(255,255,255,0.08)', boxShadow:'inset 0 0 0 1px rgba(255,255,255,0.04), 0 24px 80px rgba(0,0,0,0.24)',
+  },
+  stack: {
+    position:'absolute', inset:0, perspective:900,
+    backgroundImage:'linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(0deg,rgba(255,255,255,0.02) 1px,transparent 1px)',
+    backgroundSize:'58px 58px',
+  },
+  paper: {
+    position:'absolute', left:'50%', top:'50%', width:'min(340px,78vw)', minHeight:230,
+    padding:22, borderRadius:8, background:'#fffdf2', color:'#17110c',
+    border:'1px solid rgba(0,0,0,0.12)', boxShadow:'0 18px 44px rgba(0,0,0,0.28)',
+    transformOrigin:'50% 100%', transition:'transform 0.55s cubic-bezier(.22,.61,.36,1), opacity 0.45s ease',
+    backfaceVisibility:'hidden',
+  },
+  paperTag: { fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.14em', textTransform:'uppercase', opacity:0.48, marginBottom:14 },
+  paperTitle: { fontFamily:"'Cormorant Garamond',serif", fontSize:36, lineHeight:0.95, fontStyle:'italic' },
+  paperRule: { height:1, background:'rgba(0,0,0,0.14)', margin:'18px 0' },
+  paperNote: { fontSize:14, lineHeight:1.55, opacity:0.72 },
+  paperMarks: { display:'grid', gap:7, marginTop:22 },
+  paperMark: { display:'block', height:6, borderRadius:8, background:'rgba(0,0,0,0.08)' },
+  timeline: { display:'flex', flexWrap:'wrap', gap:8 },
+  timelineItem: {
+    border:'1px solid rgba(128,128,128,0.22)', borderRadius:8, background:'transparent', color:'inherit',
+    padding:'9px 11px', cursor:'pointer', fontFamily:"'JetBrains Mono',monospace", fontSize:9,
+    letterSpacing:'0.1em', textTransform:'uppercase', opacity:0.52, transition:'opacity 0.2s, background 0.2s, color 0.2s',
+  },
+  timelineActive: { opacity:1, background:'currentColor', color:'#fdfdfa' },
+};
+
+function Modal({ sectionKey, onClose, variant = 'drawer', darkMode = false }) {
+  const section = SECTION_CONTENT[sectionKey];
+  const [entering, setEntering] = React.useState(true);
+  const [closing, setClosing] = React.useState(false);
+  React.useEffect(() => {
+    const t = setTimeout(() => setEntering(false), 20);
+    const onKey = (e) => { if (e.key === 'Escape') triggerClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => { clearTimeout(t); window.removeEventListener('keydown', onKey); };
+  }, []);
+  const triggerClose = () => { setClosing(true); setTimeout(() => onClose(), 650); };
+  if (!section) return null;
+  const Body = section.body;
+  const visible = !entering && !closing;
+  const isCenter = variant === 'center';
+
+  const panelBg    = darkMode ? '#141414' : '#fdfdfa';
+  const panelBdr   = darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+  const panelShadow= darkMode ? '0 40px 120px rgba(0,0,0,0.7)' : '0 40px 120px rgba(0,0,0,0.22)';
+  const overlayBg  = darkMode
+    ? (visible ? 'rgba(0,0,0,0.88)' : 'rgba(0,0,0,0)')
+    : (visible ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0)');
+  const fg         = darkMode ? '#f0f0f0' : '#000';
+  const closeBdrC  = darkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)';
+  const hdrGrad    = darkMode
+    ? `linear-gradient(to bottom,${panelBg} 80%,rgba(20,20,20,0))`
+    : `linear-gradient(to bottom,${panelBg} 80%,rgba(253,253,250,0))`;
+
+  const panelStyle = isCenter ? {
+    width:'min(720px,92vw)', maxHeight:'86vh', background: panelBg, color: fg,
+    border:`1px solid ${panelBdr}`, boxShadow: panelShadow,
+    transform: visible ? 'translateY(0) scale(1)' : 'translateY(30px) scale(0.96)',
+    opacity: visible ? 1 : 0,
+    transition:'transform 0.7s cubic-bezier(.22,.61,.36,1),opacity 0.5s',
+    overflowY:'auto', display:'flex', flexDirection:'column', alignSelf:'center',
+  } : {
+    width:'min(640px,92vw)', height:'100%', background: panelBg, color: fg,
+    borderLeft:`1px solid ${panelBdr}`, boxShadow:'-40px 0 80px rgba(0,0,0,0.08)',
+    transform: visible ? 'translateX(0)' : 'translateX(100%)',
+    transition:'transform 0.7s cubic-bezier(.22,.61,.36,1)',
+    overflowY:'auto', display:'flex', flexDirection:'column',
+  };
+
+  return (
+    <div onClick={triggerClose} style={{ position:'fixed', inset:0, zIndex:100, background: overlayBg, backdropFilter: visible ? 'blur(20px)' : 'blur(0px)', WebkitBackdropFilter: visible ? 'blur(20px)' : 'blur(0px)', transition:'background 0.6s,backdrop-filter 0.6s', display:'flex', alignItems: isCenter ? 'center' : 'stretch', justifyContent: isCenter ? 'center' : 'flex-end', padding: isCenter ? '40px' : 0 }}>
+      <div onClick={(e)=>e.stopPropagation()} style={panelStyle}>
+        <div style={{ position:'sticky', top:0, zIndex:2, padding:'28px 48px 20px', background: hdrGrad, display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+          <div>
+            <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.18em', opacity:0.4, color: fg }}>§ {section.index}</div>
+            <h2 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:52, fontWeight:400, fontStyle:'italic', marginTop:2, lineHeight:1, color: fg }}>{section.title}</h2>
+          </div>
+          <button onClick={triggerClose}
+            style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:11, letterSpacing:'0.14em', textTransform:'uppercase', background:'transparent', border:`1px solid ${closeBdrC}`, padding:'10px 16px', cursor:'pointer', color: fg, transition:'background 0.3s,color 0.3s' }}
+            onMouseEnter={(e)=>{ e.currentTarget.style.background=fg; e.currentTarget.style.color=panelBg; }}
+            onMouseLeave={(e)=>{ e.currentTarget.style.background='transparent'; e.currentTarget.style.color=fg; }}>
+            Close ×
+          </button>
+        </div>
+        <div style={{ padding:'16px 48px 64px', flex:1, color: fg }}><Body /></div>
+      </div>
+    </div>
+  );
+}
+
+// ─── TWEAKS ─────────────────────────────────────────────────────────────────
+
+function TweaksPanel({ values, onChange }) {
+  const set = (k, v) => onChange({ ...values, [k]: v });
+  const effects = ['shatter','dissolve','scatter','glitch','fade'];
+  const fonts = ['Cormorant Garamond','Playfair Display','Inter','JetBrains Mono'];
+  return (
+    <div style={{ position:'fixed', right:24, bottom:24, zIndex:200, width:280, background:'#fdfdfa', color:'#000', border:'1px solid rgba(0,0,0,0.12)', boxShadow:'0 20px 60px rgba(0,0,0,0.12)', padding:18, fontFamily:"'Inter',sans-serif" }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', paddingBottom:14, borderBottom:'1px solid rgba(0,0,0,0.08)', marginBottom:14 }}>
+        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontStyle:'italic', fontSize:18 }}>Tweaks</div>
+        <div style={{ width:8, height:8, background:'#000' }} />
+      </div>
+      <div style={{ marginBottom:14 }}>
+        <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', opacity:0.55, marginBottom:8 }}>Hover effect</div>
+        <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+          {effects.map(e => <button key={e} onClick={()=>set('hoverEffect',e)} style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', padding:'7px 10px', background: values.hoverEffect===e ? '#000' : 'transparent', border:'1px solid rgba(0,0,0,0.15)', color: values.hoverEffect===e ? '#fff' : '#000', cursor:'pointer' }}>{e}</button>)}
+        </div>
+      </div>
+      <div style={{ marginBottom:14 }}>
+        <div style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', opacity:0.55, marginBottom:8 }}>Name font</div>
+        <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+          {fonts.map(f => <button key={f} onClick={()=>set('nameFont',f)} style={{ fontFamily:`'${f}',serif`, fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', padding:'7px 10px', background: values.nameFont===f ? '#000' : 'transparent', border:'1px solid rgba(0,0,0,0.15)', color: values.nameFont===f ? '#fff' : '#000', cursor:'pointer' }}>{f.split(' ')[0]}</button>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── RESUME WRITER ───────────────────────────────────────────────────────────
+
+function ResumeWriter({ onComplete, onCancel }) {
+  const [paperIn, setPaperIn] = React.useState(false);
+  const [lineCount, setLineCount] = React.useState(0);
+  const [finished, setFinished] = React.useState(false);
+
+  const LINES = [
+    { text: 'AKSHAY TALLIKAR',                                              type: 'name',    ms: 480 },
+    { text: '─────────────────────────────────────────────────────────',    type: 'rule',    ms: 120 },
+    { text: '224-717-9910  ·  tallikarakshay@gmail.com',                   type: 'contact', ms: 360 },
+    { text: 'linkedin.com/in/akshay-tallikar  ·  Port Barrington, IL',      type: 'contact', ms: 340 },
+    { text: '',                                                              type: 'gap',     ms: 70  },
+    { text: 'EDUCATION',                                                     type: 'section', ms: 200 },
+    { text: 'The Ohio State University  ·  Columbus, OH',                   type: 'org',     ms: 300 },
+    { text: 'B.S. Mathematics — Data Analytics & Computational Coursework', type: 'sub',     ms: 360 },
+    { text: 'Graduation: December 2025',                                     type: 'sub',     ms: 200 },
+    { text: '',                                                              type: 'gap',     ms: 70  },
+    { text: 'EXPERIENCE',                                                    type: 'section', ms: 200 },
+    { text: 'John Deere  ·  Data Analytics              Feb 2024 – Dec 2025', type: 'org',   ms: 340 },
+    { text: '  → Power BI dashboards  ·  ETL pipelines  ·  $10B+ supplier data', type: 'bullet', ms: 340 },
+    { text: 'Johnson & Johnson  ·  Data Science Co-Op   Aug – Dec 2024',    type: 'org',     ms: 320 },
+    { text: '  → GenAI RAG pipeline  ·  PySpark ETL  ·  R package dev',    type: 'bullet',  ms: 300 },
+    { text: 'Qualcomm  ·  Software Engineer Intern        May – Aug 2023',  type: 'org',     ms: 300 },
+    { text: '  → React + Spring Boot + MongoDB + AWS EKS platform',         type: 'bullet',  ms: 280 },
+    { text: '',                                                              type: 'gap',     ms: 70  },
+    { text: 'SKILLS',                                                        type: 'section', ms: 160 },
+    { text: 'Python  ·  SQL  ·  Power BI  ·  Databricks  ·  AWS  ·  React  ·  Docker', type: 'body', ms: 360 },
+    { text: 'TensorFlow  ·  LangChain  ·  OpenAI GPT  ·  RAG  ·  PySpark  ·  Airflow', type: 'body', ms: 340 },
+  ];
+
+  React.useEffect(() => {
+    const t0 = setTimeout(() => setPaperIn(true), 60);
+    let cum = 480; // paper slide-in time
+    const timers = [t0];
+    LINES.forEach((line, i) => {
+      timers.push(setTimeout(() => setLineCount(i + 1), cum));
+      cum += line.ms;
+    });
+    timers.push(setTimeout(() => {
+      setFinished(true);
+      setTimeout(() => onComplete && onComplete(), 600);
+    }, cum + 200));
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  const skip = () => { onCancel && onCancel(); };
+
+  // Ruled lines behind text
+  const rules = Array.from({ length: 30 }, (_, i) => i);
+
+  return (
+    <div onClick={skip} style={{ position:'fixed', inset:0, zIndex:90, background:'rgba(18,14,10,0.97)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', animation:'rw-fadein 0.3s ease-out both' }}>
+
+      {/* Ambient desk light */}
+      <div style={{ position:'absolute', top:'40%', left:'50%', transform:'translate(-50%,-50%)', width:700, height:400, background:'radial-gradient(ellipse,rgba(255,240,200,0.07) 0%,transparent 70%)', pointerEvents:'none' }} />
+
+      {/* Paper */}
+      <div onClick={e => e.stopPropagation()} style={{
+        position:'relative', width:640, maxHeight:'82vh',
+        background:'#fefef4',
+        boxShadow:'0 2px 4px rgba(0,0,0,0.15), 0 8px 32px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(0,0,0,0.06)',
+        transform: paperIn ? 'translateY(0) rotate(-0.4deg)' : 'translateY(48px) rotate(-0.4deg)',
+        opacity: paperIn ? 1 : 0,
+        transition: 'transform 0.45s cubic-bezier(.22,.61,.36,1), opacity 0.4s ease',
+        overflow:'hidden',
+      }}>
+
+        {/* Red left margin line */}
+        <div style={{ position:'absolute', left:56, top:0, bottom:0, width:1, background:'rgba(200,60,60,0.35)', zIndex:1 }} />
+
+        {/* Ruled lines */}
+        <div style={{ position:'absolute', inset:0, zIndex:0 }}>
+          {rules.map(i => (
+            <div key={i} style={{ position:'absolute', left:0, right:0, top: 44 + i * 26, height:1, background:'rgba(150,180,220,0.25)' }} />
+          ))}
+        </div>
+
+        {/* Hole punches */}
+        {[80, 200, 320].map(y => (
+          <div key={y} style={{ position:'absolute', left:-6, top:y, width:12, height:12, borderRadius:'50%', background:'#fefef4', boxShadow:'inset 0 1px 3px rgba(0,0,0,0.25)', zIndex:2 }} />
+        ))}
+
+        {/* Paper content */}
+        <div style={{ position:'relative', zIndex:3, padding:'32px 36px 40px 72px', fontFamily:"'Courier New',Courier,monospace", overflowY:'auto', maxHeight:'82vh' }}>
+          {LINES.map((line, i) => {
+            if (i >= lineCount) return null;
+            const isActive = i === lineCount - 1 && !finished;
+            const dur = line.ms;
+
+            if (line.type === 'gap') return <div key={i} style={{ height:10 }} />;
+
+            const styleMap = {
+              name:    { fontSize:17, fontWeight:700, letterSpacing:'0.12em', color:'#1a1a2e', marginBottom:2 },
+              rule:    { fontSize:11, color:'#aaa', letterSpacing:0, marginBottom:4 },
+              contact: { fontSize:11, color:'#444', marginBottom:2 },
+              section: { fontSize:12, fontWeight:700, letterSpacing:'0.18em', color:'#1a3a6b', marginTop:4, marginBottom:3, textDecoration:'underline', textUnderlineOffset:3 },
+              org:     { fontSize:12, fontWeight:700, color:'#111', marginBottom:1 },
+              sub:     { fontSize:11, color:'#333', marginBottom:1 },
+              bullet:  { fontSize:11, color:'#222', marginBottom:1, paddingLeft:4 },
+              body:    { fontSize:11, color:'#333', marginBottom:2 },
+            };
+
+            return (
+              <div key={i} style={{ display:'flex', alignItems:'baseline', marginBottom: line.type === 'section' ? 4 : 1 }}>
+                <span style={{
+                  ...styleMap[line.type],
+                  display:'inline-block',
+                  overflow:'hidden',
+                  whiteSpace:'nowrap',
+                  animation: `rw-write ${dur}ms linear forwards`,
+                  maxWidth:'100%',
+                }}>
+                  {line.text || '\u00a0'}
+                </span>
+                {isActive && (
+                  <span style={{ display:'inline-block', width:2, height:'1em', background:'#222', marginLeft:1, animation:'rw-blink 0.6s step-end infinite', flexShrink:0 }} />
+                )}
+              </div>
+            );
+          })}
+
+          {finished && (
+            <div style={{ marginTop:20, textAlign:'center', animation:'rw-fadein 0.4s ease-out both' }}>
+              <div style={{ fontSize:10, fontFamily:"'JetBrains Mono',monospace", letterSpacing:'0.16em', color:'#888', textTransform:'uppercase' }}>— end of document —</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* HUD */}
+      <div style={{ position:'absolute', bottom:28, left:32, fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.16em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)' }}>
+        [ click to skip ]
+      </div>
+      <div style={{ position:'absolute', bottom:28, right:32, fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.16em', textTransform:'uppercase', color:'rgba(255,255,255,0.4)' }}>
+        AKT · RÉSUMÉ
+      </div>
+
+      <style>{`
+        @keyframes rw-fadein { from { opacity:0 } to { opacity:1 } }
+        @keyframes rw-blink { 0%,100% { opacity:1 } 50% { opacity:0 } }
+        @keyframes rw-write { from { max-width:0 } to { max-width:600px } }
+      `}</style>
+    </div>
+  );
+}
+
+// ─── APP ─────────────────────────────────────────────────────────────────────
+
+const SECTIONS = [
+  { key:'about',       label:'About',       index:'01' },
+  { key:'work',        label:'Work',        index:'02' },
+  { key:'experience',  label:'Experience',  index:'03' },
+  { key:'resume',      label:'Résumé',      index:'04' },
+  { key:'skills',      label:'Skills',      index:'05' },
+  { key:'social',      label:'Social',      index:'06' },
+  { key:'contact',     label:'Contact',     index:'07' },
+  { key:'photography', label:'BTS', index:'08' },
+];
+
+function mulberry32(seed) {
+  return function() {
+    let t = seed += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function placeBoxes(count, vw, vh, avoidRect, seed) {
+  const rng = mulberry32(seed);
+  const cx = vw/2, cy = vh/2;
+  const scale = Math.min(1, Math.max(0.75, Math.min(vw,vh)/900));
+  const baseW = Math.round(200*scale), baseH = Math.round(120*scale);
+  const avoidHalfW = avoidRect ? avoidRect.w/2 : 300;
+  const avoidHalfH = avoidRect ? avoidRect.h/2 : 110;
+  const maxRx = vw/2 - baseW/2 - 24, maxRy = vh/2 - baseH/2 - 24;
+  const minRx = avoidHalfW + baseW/2 + 30, minRy = avoidHalfH + baseH/2 + 30;
+  const rx = Math.max(minRx, Math.min(maxRx, (minRx+maxRx)/2));
+  const ry = Math.max(minRy, Math.min(maxRy, (minRy+maxRy)/2));
+  const startAngle = -Math.PI/2;
+  return Array.from({length:count}, (_,i) => {
+    const angle = startAngle + (i/count)*Math.PI*2;
+    const sizeJit = 0.9 + ((i%3)*0.08) + (rng()-0.5)*0.08;
+    const w = Math.round(baseW*sizeJit), h = Math.round(baseH*sizeJit);
+    return { x: cx+Math.cos(angle)*rx - w/2, y: cy+Math.sin(angle)*ry - h/2, w, h };
+  });
+}
+
+// ─── TEMPLE COLUMNS ─────────────────────────────────────────────────────────
+// Gopuram: strong trapezoid taper, bold tiers with niches, stepped base, barrel roof
+
+function StageCurtain({ flip = false }) {
+  const FOLDS = 7;
+  const crimson = '#8B0000', light = '#C41E3A', deep = '#3a0000';
+  const gold = '#C9A84C', goldDk = '#7a5800', pelmet = '#580000';
+
+  return (
+    <div style={{ position:'absolute', inset:0 }}>
+      {/* Fold stripes */}
+      {Array.from({length: FOLDS}, (_, i) => (
+        <div key={i} style={{
+          position:'absolute', top:0, bottom:0,
+          left:`${(i/FOLDS)*100}%`, width:`${100/FOLDS}%`,
+          background:`linear-gradient(to right,${deep} 0%,${light} 22%,${crimson} 50%,${light} 78%,${deep} 100%)`,
+        }}/>
+      ))}
+
+      {/* Inner-edge shadow toward stage center */}
+      <div style={{
+        position:'absolute', top:0, bottom:0,
+        [flip ? 'left' : 'right']:0, width:22,
+        background:`linear-gradient(to ${flip?'right':'left'},rgba(0,0,0,0.65),transparent)`,
+        pointerEvents:'none',
+      }}/>
+
+      {/* Bottom fade */}
+      <div style={{
+        position:'absolute', bottom:0, left:0, right:0, height:80,
+        background:'linear-gradient(to bottom, transparent, rgba(0,0,0,0.35))',
+        pointerEvents:'none',
+      }}/>
+
+      {/* Cornice / pelmet */}
+      <div style={{
+        position:'absolute', top:0, left:0, right:0, height:58,
+        background:pelmet, boxShadow:'0 6px 20px rgba(0,0,0,0.7)',
+      }}>
+        {/* Gold curtain rod */}
+        <div style={{
+          position:'absolute', top:1, left:-4, right:-4, height:11,
+          background:`linear-gradient(to bottom,#F0D580,${gold} 35%,${goldDk} 65%,${gold} 100%)`,
+          borderRadius:6, boxShadow:'0 2px 6px rgba(0,0,0,0.5)',
+        }}/>
+        {/* Curtain rings */}
+        {Array.from({length: FOLDS + 1}, (_, i) => (
+          <div key={i} style={{
+            position:'absolute', top:10, left:`${(i/FOLDS)*100}%`, marginLeft:-4,
+            width:8, height:11,
+            background:`linear-gradient(to bottom,${gold},${goldDk})`,
+            borderRadius:'0 0 5px 5px',
+          }}/>
+        ))}
+        {/* Gold trim strip */}
+        <div style={{
+          position:'absolute', bottom:0, left:0, right:0, height:3,
+          background:`linear-gradient(to right,${goldDk},${gold},${goldDk})`,
+        }}/>
+        {/* Decorative bead row */}
+        <div style={{
+          position:'absolute', bottom:7, left:8, right:8,
+          display:'flex', justifyContent:'space-between', alignItems:'center',
+        }}>
+          {Array.from({length: 9}, (_, i) => (
+            <div key={i} style={{ width:4, height:4, borderRadius:'50%', background:gold, opacity:0.65 }}/>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── STUDIO SPOTLIGHT ───────────────────────────────────────────────────────
+
+// SVG fixture head — rotates around pivot based on angle (radians from vertical)
+function SpotlightHead({ oy, angle, darkMode }) {
+  const cx = 55, pivotY = Math.max(10, oy - 14);
+  const deg = (angle || 0) * 180 / Math.PI;
+  const mc = darkMode ? '#888' : '#555';
+  const bc = darkMode ? '#2a2a2a' : '#1a1a1a';
+  const sc = darkMode ? '#555' : '#333';
+
+  return (
+    <svg width={110} height={pivotY + 70} viewBox={`0 0 110 ${pivotY + 70}`}
+      style={{ position:'absolute', top:0, left:0, pointerEvents:'none', overflow:'visible' }}>
+      {/* Mount plate at top */}
+      <rect x={43} y={2} width={24} height={8} rx={2} fill={sc} stroke={mc} strokeWidth={0.7}/>
+      {/* Arm down to pivot */}
+      <rect x={52} y={8} width={6} height={pivotY - 8} fill={sc} stroke={mc} strokeWidth={0.5}/>
+      {/* Pivot knuckle */}
+      <circle cx={cx} cy={pivotY} r={6} fill={sc} stroke={mc} strokeWidth={0.8}/>
+      <circle cx={cx} cy={pivotY} r={2.5} fill={mc}/>
+
+      {/* Light head — rotates around pivot */}
+      <g transform={`rotate(${deg}, ${cx}, ${pivotY})`}>
+        {/* Yoke */}
+        <rect x={50} y={pivotY - 3} width={10} height={10} fill={sc}/>
+        {/* Body cylinder */}
+        <rect x={44} y={pivotY + 6} width={22} height={32} rx={5}
+          fill={bc} stroke={sc} strokeWidth={1}/>
+        {/* Vent slots */}
+        {[pivotY+12, pivotY+18, pivotY+24].map(y => (
+          <line key={y} x1={47} y1={y} x2={63} y2={y} stroke={sc} strokeWidth={1.2}/>
+        ))}
+        {/* Lens housing ring */}
+        <ellipse cx={cx} cy={pivotY + 38} rx={13} ry={5}
+          fill={bc} stroke={sc} strokeWidth={0.8}/>
+        {/* Lens glow */}
+        <ellipse cx={cx} cy={pivotY + 38} rx={8} ry={3.2}
+          fill="rgba(255,245,160,0.92)"/>
+        {/* Lens specular */}
+        <ellipse cx={cx - 3} cy={pivotY + 36.5} rx={2.5} ry={1.2}
+          fill="rgba(255,255,255,0.5)"/>
+      </g>
+    </svg>
+  );
+}
+
+// Full-screen canvas that draws the light cones via mix-blend-mode: screen
+function SpotlightBeams({ beamL, beamR, angL, angR, vw, vh }) {
+  const ref = React.useRef(null);
+
+  React.useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    canvas.width = vw; canvas.height = vh;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, vw, vh);
+
+    const drawBeam = (ox, oy, angle) => {
+      const SPREAD = 0.14; // ~8° half-angle
+      const LEN = Math.hypot(vw, vh) * 1.4;
+      const ax = ox + Math.sin(angle) * LEN, ay = oy + Math.cos(angle) * LEN;
+      const x1 = ox + Math.sin(angle - SPREAD)*LEN, y1 = oy + Math.cos(angle - SPREAD)*LEN;
+      const x2 = ox + Math.sin(angle + SPREAD)*LEN, y2 = oy + Math.cos(angle + SPREAD)*LEN;
+
+      // Beam body — gradient from bright source to transparent far end
+      const grad = ctx.createLinearGradient(ox, oy, ax, ay);
+      grad.addColorStop(0,    'rgba(255,250,215,0.72)');
+      grad.addColorStop(0.04, 'rgba(255,246,205,0.38)');
+      grad.addColorStop(0.22, 'rgba(255,243,195,0.15)');
+      grad.addColorStop(0.60, 'rgba(255,240,185,0.05)');
+      grad.addColorStop(1,    'rgba(255,236,175,0)');
+      ctx.beginPath();
+      ctx.moveTo(ox, oy);
+      ctx.lineTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Lens flare glow at source
+      const src = ctx.createRadialGradient(ox, oy, 0, ox, oy, 55);
+      src.addColorStop(0,   'rgba(255,252,220,0.55)');
+      src.addColorStop(0.4, 'rgba(255,248,200,0.18)');
+      src.addColorStop(1,   'rgba(255,244,185,0)');
+      ctx.fillStyle = src;
+      ctx.beginPath(); ctx.arc(ox, oy, 55, 0, Math.PI*2); ctx.fill();
+
+      // Hot spot where beam axis intersects the name (vh*0.48)
+      const nameY = vh * 0.48;
+      const cosA = Math.cos(angle);
+      if (Math.abs(cosA) > 0.02) {
+        const t = (nameY - oy) / cosA;
+        if (t > 0 && t < LEN) {
+          const hx = ox + Math.sin(angle) * t;
+          const hot = ctx.createRadialGradient(hx, nameY, 0, hx, nameY, 180);
+          hot.addColorStop(0,   'rgba(255,252,220,0.32)');
+          hot.addColorStop(0.35,'rgba(255,248,205,0.12)');
+          hot.addColorStop(1,   'rgba(255,243,185,0)');
+          ctx.fillStyle = hot;
+          ctx.beginPath(); ctx.arc(hx, nameY, 180, 0, Math.PI*2); ctx.fill();
+        }
+      }
+    };
+
+    drawBeam(beamL.ox, beamL.oy, angL);
+    drawBeam(beamR.ox, beamR.oy, angR);
+  }, [beamL.ox, beamL.oy, angL, beamR.ox, beamR.oy, angR, vw, vh]);
+
+  return (
+    <canvas ref={ref}
+      style={{ position:'fixed', top:0, left:0, width:vw, height:vh,
+        pointerEvents:'none', zIndex:3, mixBlendMode:'screen' }}
+    />
+  );
+}
+
+// Temple column wrapper — drag anywhere on column to repoint the spotlight
+function TempleColumnWithSpot({ flip, margin, darkMode, beamOrigin, angle, onAngle }) {
+  const side = flip ? 'right' : 'left';
+  const dragging = React.useRef(false);
+  const originRef = React.useRef(beamOrigin);
+  const cbRef = React.useRef(onAngle);
+  React.useEffect(() => { originRef.current = beamOrigin; }, [beamOrigin]);
+  React.useEffect(() => { cbRef.current = onAngle; }, [onAngle]);
+
+  React.useEffect(() => {
+    const onMove = (e) => {
+      if (!dragging.current) return;
+      const { ox, oy } = originRef.current;
+      const a = Math.atan2(e.clientX - ox, e.clientY - oy);
+      cbRef.current(Math.max(-1.35, Math.min(1.35, a)));
+    };
+    const onUp = () => { dragging.current = false; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, []);
+
+  return (
+    <div
+      style={{ position:'fixed', [side]:margin, top:0, bottom:0, width:110, zIndex:1,
+        overflow:'hidden', cursor: 'grab', userSelect:'none' }}
+      onMouseDown={(e) => { dragging.current = true; e.preventDefault(); }}
+    >
+      <StageCurtain flip={flip} />
+      <SpotlightHead oy={beamOrigin.oy} angle={angle} darkMode={darkMode} />
+    </div>
+  );
+}
+
+function placeBoxesSquare(vw, vh, nameAvoid) {
+  const scale = Math.min(1, Math.max(0.75, Math.min(vw, vh) / 900));
+  const bh = Math.round(110 * scale);
+  const cols = 4, gap = 14, margin = 28;
+  const bw = Math.round((Math.min(vw - 2 * margin, 1040) - (cols - 1) * gap) / cols);
+  const cx = vw / 2, cy = vh / 2;
+  const rowW = cols * bw + (cols - 1) * gap;
+  const startX = cx - rowW / 2;
+  // top row clears name above; bottom row clears name below
+  const topY = cy - nameAvoid.h / 2 - bh - 32;
+  const botY = cy + nameAvoid.h / 2 + 32;
+  return Array.from({ length: 8 }, (_, i) => ({
+    x: startX + (i % cols) * (bw + gap),
+    y: i < cols ? topY : botY,
+    w: bw, h: bh,
+  }));
+}
+
+// Boxes orbit the name, spin up, then settle into a 3×3 grid around it.
+function SpinningBoxes({ sections, nameAvoid, dims, boxRefs, shattered, onHover, onClick, darkMode }) {
+  const [settled, setSettled] = React.useState(false);
+  const [settledPos, setSettledPos] = React.useState(null);
+
+  const scale = Math.min(1, Math.max(0.75, Math.min(dims.w, dims.h) / 900));
+  const bh = Math.round(110 * scale);
+  const bw = Math.round((Math.min(dims.w - 56, 1040) - 3 * 14) / 4);
+  const cx = dims.w / 2, cy = dims.h / 2;
+  const orbitRx = Math.min(nameAvoid.w / 2 + bw / 2 + 40, dims.w / 2 - bw / 2 - 20);
+  const orbitRy = nameAvoid.h / 2 + bh / 2 + 32;
+
+  React.useEffect(() => {
+    // Bell-curve spin: slow → fast → slow, then RAF-driven settle to grid (no CSS snap)
+    const SPIN_MS = 2500;
+    const SETTLE_MS = 850;
+    // Total angle = MAX_SPEED * SPIN_MS * integral(sin(π*t), 0..1) = MAX_SPEED * SPIN_MS * 2/π
+    // Targeting 2 full turns → MAX_SPEED = 2*2π / (SPIN_MS * 2/π) = 2π² / SPIN_MS
+    const MAX_SPEED = (2 * Math.PI * Math.PI) / SPIN_MS; // rad/ms
+
+    const targetPos = placeBoxesSquare(dims.w, dims.h, nameAvoid);
+    const startTime = performance.now();
+    let angle = 0;
+    let prevNow = startTime;
+    let animPhase = 'spin';
+    let settleStartPos = null;
+    let settleStartTime = 0;
+    let raf;
+
+    const tick = (now) => {
+      const dt = Math.min(now - prevNow, 50);
+      prevNow = now;
+
+      if (animPhase === 'spin') {
+        const spinT = Math.min((now - startTime) / SPIN_MS, 1);
+        // Bell-curve angular speed: zero at t=0 and t=1, peak at t=0.5
+        angle += Math.sin(Math.PI * spinT) * MAX_SPEED * dt;
+
+        sections.forEach((s, i) => {
+          const el = boxRefs.current[s.key];
+          if (!el) return;
+          const a = (i / sections.length) * Math.PI * 2 - Math.PI / 2 + angle;
+          el.style.transform = `translate(${cx + Math.cos(a)*orbitRx - bw/2}px,${cy + Math.sin(a)*orbitRy - bh/2}px)`;
+        });
+
+        if (spinT >= 1) {
+          // Capture exact orbit positions for smooth settle interpolation
+          settleStartPos = sections.map((s, i) => {
+            const a = (i / sections.length) * Math.PI * 2 - Math.PI / 2 + angle;
+            return { x: cx + Math.cos(a)*orbitRx - bw/2, y: cy + Math.sin(a)*orbitRy - bh/2 };
+          });
+          settleStartTime = now;
+          animPhase = 'settle';
+        }
+      } else {
+        const st = Math.min((now - settleStartTime) / SETTLE_MS, 1);
+        // Ease-out cubic: fast start, glides to a smooth stop at target
+        const ease = 1 - Math.pow(1 - st, 3);
+
+        sections.forEach((s, i) => {
+          const el = boxRefs.current[s.key];
+          if (!el) return;
+          const f = settleStartPos[i], to = targetPos[i];
+          el.style.transform = `translate(${f.x + (to.x - f.x)*ease}px,${f.y + (to.y - f.y)*ease}px)`;
+        });
+
+        if (st >= 1) {
+          setSettledPos(targetPos);
+          setSettled(true);
+          return; // stop loop
+        }
+      }
+
+      raf = requestAnimationFrame(tick);
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  // Synchronously snap boxes to orbit before first paint — seamless hand-off from zoom placeholders
+  React.useLayoutEffect(() => {
+    sections.forEach((s, i) => {
+      const el = boxRefs.current[s.key];
+      if (!el) return;
+      const a = (i / sections.length) * Math.PI * 2 - Math.PI / 2;
+      el.style.transition = 'none';
+      el.style.opacity = '1';
+      el.style.transform = `translate(${cx + Math.cos(a)*orbitRx - bw/2}px,${cy + Math.sin(a)*orbitRy - bh/2}px)`;
+    });
+  }, []);
+
+  // Re-place boxes whenever the viewport resizes (only after initial settle)
+  React.useEffect(() => {
+    if (!settled) return;
+    setSettledPos(placeBoxesSquare(dims.w, dims.h, nameAvoid));
+  }, [dims.w, dims.h]); // nameAvoid is derived from dims so always in sync
+
+  const [hoveredKey, setHoveredKey] = React.useState(null);
+
+  return sections.map((s, i) => {
+    const broken = shattered[s.key];
+    const sp = settledPos ? settledPos[i] : null;
+    const isHovered = hoveredKey === s.key && !broken;
+    const baseTransform = sp ? `translate(${sp.x}px,${sp.y}px)` : undefined;
+    return (
+      <button
+        key={s.key}
+        ref={el => boxRefs.current[s.key] = el}
+        onMouseEnter={() => { setHoveredKey(s.key); onHover(s.key); }}
+        onMouseLeave={() => setHoveredKey(null)}
+        onFocus={() => setHoveredKey(s.key)}
+        onBlur={() => setHoveredKey(null)}
+        onClick={() => onClick(s.key)}
+        style={{
+          position: 'absolute', left: 0, top: 0,
+          width: sp ? sp.w : bw, height: sp ? sp.h : bh,
+          ...(settled ? {
+            transform: baseTransform
+              ? (isHovered ? `${baseTransform} scale(1.06)` : baseTransform)
+              : undefined,
+            opacity: broken ? 0 : 1,
+            transition: broken ? 'opacity 0.05s' : 'opacity 0.5s 0.3s, transform 0.18s ease',
+            pointerEvents: broken ? 'none' : 'auto',
+          } : { pointerEvents: 'none' }),
+          background: darkMode ? '#f2f2f2' : '#000', color: darkMode ? '#0a0a0a' : '#f0f0f0',
+          border: 'none', outline: darkMode ? '1px solid rgba(255,255,255,0.08)' : 'none',
+          cursor: 'pointer', padding: 12,
+          display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-start',
+          fontFamily: "'JetBrains Mono',monospace", zIndex: isHovered ? 3 : 2, overflow: 'hidden',
+        }}
+      >
+        <span style={{ fontSize:10, letterSpacing:'0.16em', opacity:0.6 }}>{s.index}</span>
+        <span style={{ fontSize:10, letterSpacing:0, textTransform:'uppercase', alignSelf:'flex-end', whiteSpace:'nowrap', paddingRight:2 }}>{s.label}</span>
+      </button>
+    );
+  });
+}
+
+function getTimeStr() {
+  const d = new Date();
+  return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')} LOCAL`;
+}
+
+function App() {
+  const [tweaks, setTweaks] = React.useState({ hoverEffect:'dissolve', showGrid:false, nameFont:'Cormorant Garamond' });
+  const [dims, setDims] = React.useState({ w:window.innerWidth, h:window.innerHeight });
+  const [seed, setSeed] = React.useState(42);
+  const [nameBroken, setNameBroken] = React.useState(false);
+  const [shattered, setShattered] = React.useState({});
+  const [shatterItems, setShatterItems] = React.useState([]);
+  const [openSection, setOpenSection] = React.useState(null);
+  const [editMode, setEditMode] = React.useState(false);
+  const [timeStr, setTimeStr] = React.useState(getTimeStr());
+  const [introPhase, setIntroPhase] = React.useState('zoomed-in');
+  const [darkMode, setDarkMode] = React.useState(true);
+  const [globeActive, setGlobeActive] = React.useState(false);
+  const [resumeWriterActive, setResumeWriterActive] = React.useState(false);
+  const calcSpotAngles = (w, h) => {
+    const cols = 4, gap = 14, margin = 28, templeW = 110;
+    const bw = Math.round((Math.min(w - 2*margin, 1040) - (cols-1)*gap) / cols);
+    const rowW = cols*bw + (cols-1)*gap;
+    const tMargin = Math.max(4, Math.round(((w - rowW) / 2 - templeW) / 2));
+    const ox = tMargin + 55, oy = 80, nameY = h * 0.5;
+    const ang = Math.atan2(w/2 - ox, nameY - oy);
+    return { l: ang, r: -ang };
+  };
+  const [spotAngL, setSpotAngL] = React.useState(() => calcSpotAngles(window.innerWidth, window.innerHeight).l);
+  const [spotAngR, setSpotAngR] = React.useState(() => calcSpotAngles(window.innerWidth, window.innerHeight).r);
+  const boxRefs = React.useRef({});
+  const resetTimers = React.useRef({});
+
+  React.useEffect(() => {
+    const onMsg = (e) => {
+      const d = e.data;
+      if (!d || typeof d !== 'object') return;
+      if (d.type === '__activate_edit_mode') setEditMode(true);
+      else if (d.type === '__deactivate_edit_mode') setEditMode(false);
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  React.useEffect(() => {
+    const onResize = () => {
+      const w = window.innerWidth, h = window.innerHeight;
+      setDims({ w, h });
+      const a = calcSpotAngles(w, h);
+      setSpotAngL(a.l);
+      setSpotAngR(a.r);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  React.useEffect(() => {
+    const t = setInterval(() => setTimeStr(getTimeStr()), 30000);
+    return () => clearInterval(t);
+  }, []);
+
+
+  React.useEffect(() => {
+    const t1 = setTimeout(() => setIntroPhase('zooming-out'), 550);
+    const t2 = setTimeout(() => setIntroPhase('done'), 1850);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+
+  const introScale = introPhase === 'zoomed-in' ? 8 : 1;
+  const introTransition = introPhase === 'zoomed-in' ? 'none' : 'transform 1.2s cubic-bezier(.7,0,.2,1)';
+
+  const nameAvoid = React.useMemo(() => {
+    const w = Math.min(dims.w*0.7, 900), h = dims.h * 0.44;
+    return { x:(dims.w-w)/2, y:(dims.h-h)/2, w, h };
+  }, [dims]);
+
+  const boxes = React.useMemo(() => placeBoxes(SECTIONS.length, dims.w, dims.h, nameAvoid, seed), [dims, nameAvoid, seed]);
+
+  const triggerShatter = (key, rect) => {
+    if (shattered[key]) return;
+    const label = SECTIONS.find(s => s.key===key)?.label || '';
+    setShattered(s => ({ ...s, [key]:true }));
+    setShatterItems(items => [...items, { id:key+'-'+Date.now(), rect, effect:tweaks.hoverEffect, bg:'#000', color:'#fff', label }]);
+    clearTimeout(resetTimers.current[key]);
+    resetTimers.current[key] = setTimeout(() => setShattered(s => { const n={...s}; delete n[key]; return n; }), 2500);
+  };
+
+  const onBoxHover = (key) => { /* hover is now visual-only — scale handled inside BoxGrid */ };
+
+  const onBoxClick = (key) => {
+    if (shattered[key]) return;
+    const el = boxRefs.current[key];
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (key === 'about')  { setGlobeActive(true); }
+    else if (key === 'resume') { setResumeWriterActive(true); }
+    else { setOpenSection(key); }
+    triggerShatter(key, { left:r.left, top:r.top, width:r.width, height:r.height });
+  };
+  const shatterDone = (id) => setShatterItems(items => items.filter(it => it.id!==id));
+
+  const fg  = darkMode ? '#f0f0f0' : '#000';
+  const bg  = darkMode ? '#111' : '#fafafa';
+  const fgD = darkMode ? 'rgba(240,240,240,0.5)' : 'rgba(0,0,0,0.5)';
+  const dot = darkMode
+    ? 'radial-gradient(circle,rgba(255,255,255,0.06) 1px,transparent 1px)'
+    : 'radial-gradient(circle,rgba(0,0,0,0.07) 1px,transparent 1px)';
+  const colorTransition = 'color 0.35s, background 0.35s, border-color 0.35s, opacity 0.35s';
+  const chromeStyle = { fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.18em', textTransform:'uppercase', color: fg, transition: colorTransition };
+
+  return (
+    <div style={{ position:'relative', zIndex:0, width:'100vw', height:'100vh', background: bg, overflow:'hidden', backgroundImage: dot, backgroundSize:'28px 28px', transition:'background 0.4s, background-image 0.4s' }}>
+
+      {/* Stage scene — floor, teaser, proscenium frame */}
+      {dims.w > 900 && <StageDecor dims={dims} />}
+
+      {/* Stage curtains with studio spotlights */}
+      {dims.w > 900 && (() => {
+        const cols = 4, gap = 14, margin = 28, templeW = 110;
+        const bw = Math.round((Math.min(dims.w - 2*margin, 1040) - (cols-1)*gap) / cols);
+        const rowW = cols*bw + (cols-1)*gap;
+        const boxLeft = (dims.w - rowW) / 2;
+        const tMargin = Math.max(4, Math.round((boxLeft - templeW) / 2));
+        const spotY = 68;
+        const beamL = { ox: tMargin + 55, oy: spotY };
+        const beamR = { ox: dims.w - tMargin - 55, oy: spotY };
+        return (<>
+          <SpotlightBeams beamL={beamL} beamR={beamR} angL={spotAngL} angR={spotAngR} vw={dims.w} vh={dims.h} />
+          <TempleColumnWithSpot flip={false} margin={tMargin} darkMode={darkMode}
+            beamOrigin={beamL} angle={spotAngL} onAngle={setSpotAngL} />
+          <TempleColumnWithSpot flip={true}  margin={tMargin} darkMode={darkMode}
+            beamOrigin={beamR} angle={spotAngR} onAngle={setSpotAngR} />
+        </>);
+      })()}
+
+      {/* Corner chrome */}
+      <div style={{ position:'fixed', top:28, left:32, zIndex:5 }}>
+        <div style={chromeStyle}>AKSHAY TALLIKAR</div>
+        <div style={{...chromeStyle,opacity:0.5}}>PORTFOLIO · MMXXVI</div>
+      </div>
+      <div style={{ position:'fixed', top:28, right:32, zIndex:5, textAlign:'right' }}>
+        <div style={chromeStyle}>{timeStr}</div>
+        <button
+          onClick={() => setDarkMode(d => !d)}
+          style={{
+            marginTop:6, display:'block', marginLeft:'auto',
+            fontFamily:"'JetBrains Mono',monospace", fontSize:9, letterSpacing:'0.18em',
+            textTransform:'uppercase', background:'transparent',
+            border:`1px solid ${darkMode ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.22)'}`, color: fg,
+            cursor:'pointer', padding:'4px 10px', transition:'color 0.3s,border-color 0.3s',
+          }}
+        >
+          {darkMode ? '◑ LIGHT' : '◐ DARK'}
+        </button>
+      </div>
+      <div style={{ position:'fixed', bottom:28, left:32, zIndex:5 }}>
+        <div style={{...chromeStyle,opacity:0.5}}>[ click a box to open ]</div>
+      </div>
+      <div style={{ position:'fixed', bottom:28, right:32, zIndex:5 }}>
+        <div style={chromeStyle}>08 SECTIONS</div>
+      </div>
+
+      {/* Zoom intro wrapper — name only */}
+      <div style={{ position:'absolute', inset:0, transform:`scale(${introScale})`, transformOrigin:'50% 50%', transition:introTransition, willChange:'transform' }}>
+
+        {/* Name */}
+        <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', textAlign:'center', zIndex:3, width:'min(900px,90vw)', pointerEvents:'none' }}>
+          <h1
+            onMouseEnter={() => setNameBroken(true)}
+            onMouseLeave={() => setNameBroken(false)}
+            tabIndex={0}
+            style={{ fontWeight:500, fontStyle:'italic', lineHeight:0.95, letterSpacing: nameBroken ? '-0.01em' : '-0.02em', color: fg, transition: colorTransition, cursor:'default', pointerEvents:'auto', display:'inline-block', padding:'0 8px', userSelect:'none', fontFamily:`'${tweaks.nameFont}','Cormorant Garamond',serif`, transform: nameBroken ? 'scale(1.25)' : 'scale(1)', transition:'transform 0.9s cubic-bezier(.22,.61,.36,1),letter-spacing 0.9s cubic-bezier(.22,.61,.36,1)', fontSize:`clamp(64px,${Math.min(dims.w/11,180)}px,200px)` }}>
+            Akshay Tallikar
+          </h1>
+          <div style={{ marginTop:18, display:'flex', alignItems:'center', justifyContent:'center', gap:14, fontFamily:"'JetBrains Mono',monospace", fontSize:10, letterSpacing:'0.28em', textTransform:'uppercase', color: fg, transition: colorTransition, opacity: nameBroken ? 0 : 0.6, transform: nameBroken ? 'translateY(-4px)' : 'translateY(0)', transition:'opacity 0.5s,transform 0.6s cubic-bezier(.22,.61,.36,1)' }}>
+            <span style={{ display:'inline-block', width:40, height:1, background: fg, opacity:0.3 }} />
+            DATA · SOFTWARE ENGINEER
+            <span style={{ display:'inline-block', width:40, height:1, background: fg, opacity:0.3 }} />
+          </div>
+
+          {/* Status badge */}
+          <div style={{ marginTop:16, display:'flex', alignItems:'center', justifyContent:'center', gap:8, opacity: nameBroken ? 0 : 1, transition:'opacity 0.5s 0.1s' }}>
+            <span style={{ width:7, height:7, borderRadius:'50%', background:'#16a34a', flexShrink:0, animation:'badge-pulse 2.2s ease-out infinite' }} />
+            <span style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9, letterSpacing:'0.22em', textTransform:'uppercase', color:'#16a34a' }}>Open to Opportunities</span>
+          </div>
+
+          {/* Stat strip */}
+          <div style={{ marginTop:18, display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'center', gap:7, opacity: nameBroken ? 0 : 1, transition:'opacity 0.5s 0.15s' }}>
+            {["Ohio State '25","B.S. Mathematics","John Deere","Qualcomm","Johnson & Johnson","Chicago, IL"].map((chip,i) => (
+              <span key={i} style={{ fontFamily:"'JetBrains Mono',monospace", fontSize:9, letterSpacing:'0.1em', padding:'4px 10px', border:`1px solid ${darkMode ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.16)'}`, color: fgD, background: darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.85)', transition:'color 0.3s,border-color 0.3s,background 0.3s' }}>{chip}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Box placeholders — live inside zoom div so they scale out with the name */}
+        {introPhase !== 'done' && (() => {
+          const sc2 = Math.min(1, Math.max(0.75, Math.min(dims.w, dims.h) / 900));
+          const pbh = Math.round(110 * sc2);
+          const pbw = Math.round((Math.min(dims.w - 56, 1040) - 3 * 14) / 4);
+          const pcx = dims.w / 2, pcy = dims.h / 2;
+          const pRx = Math.min(nameAvoid.w / 2 + pbw / 2 + 40, dims.w / 2 - pbw / 2 - 20);
+          const pRy = nameAvoid.h / 2 + pbh / 2 + 32;
+          return SECTIONS.map((s, i) => {
+            const a = (i / SECTIONS.length) * Math.PI * 2 - Math.PI / 2;
+            return (
+              <div key={s.key} style={{
+                position: 'absolute', left: 0, top: 0, zIndex: 2, pointerEvents: 'none',
+                width: pbw, height: pbh, background: darkMode ? '#f2f2f2' : '#000',
+                transform: `translate(${pcx + Math.cos(a)*pRx - pbw/2}px,${pcy + Math.sin(a)*pRy - pbh/2}px)`,
+              }} />
+            );
+          });
+        })()}
+
+      </div>
+
+      {/* Spinning boxes — mount after zoom-out, useLayoutEffect snaps to orbit (no flash), then spin */}
+      {introPhase === 'done' && (
+        <SpinningBoxes
+          sections={SECTIONS}
+          nameAvoid={nameAvoid}
+          dims={dims}
+          boxRefs={boxRefs}
+          shattered={shattered}
+          darkMode={darkMode}
+          onHover={onBoxHover}
+          onClick={onBoxClick}
+        />
+      )}
+
+      {/* Shatter particles */}
+      {shatterItems.map(it => <ShatterLayer key={it.id} items={[it]} onDone={() => shatterDone(it.id)} />)}
+
+      {/* Modal */}
+      {openSection && <Modal sectionKey={openSection} variant="center" darkMode={openSection === 'resume' ? false : darkMode} onClose={() => { setOpenSection(null); setShattered({}); }} />}
+
+      {/* Globe */}
+      {globeActive && <GlobeZoom onComplete={() => { setGlobeActive(false); setOpenSection('about'); }} onCancel={() => { setGlobeActive(false); setOpenSection('about'); }} />}
+
+      {/* Resume Writer */}
+      {resumeWriterActive && <ResumeWriter onComplete={() => { setResumeWriterActive(false); setOpenSection('resume'); }} onCancel={() => { setResumeWriterActive(false); setOpenSection('resume'); }} />}
+
+      {/* Tweaks (edit mode) */}
+      {editMode && <TweaksPanel values={tweaks} onChange={setTweaks} />}
+
+      <style>{`
+        button:focus{outline:none;}
+        button:focus-visible{outline:1px solid rgba(0,0,0,0.4);outline-offset:2px;}
+        @keyframes badge-pulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,0.55)}70%{box-shadow:0 0 0 7px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+        @keyframes achievement-pop{0%{opacity:0;transform:translateY(20px) scale(0.68);filter:blur(4px)}58%{opacity:1;transform:translateY(-6px) scale(1.06);filter:blur(0)}78%{transform:translateY(2px) scale(0.98)}100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
+        @keyframes achievement-shine{0%{left:-36%;opacity:0}18%{opacity:1}100%{left:115%;opacity:0}}
+        @keyframes social-card-in{0%{opacity:0;transform:translateY(26px) scale(0.96)}100%{opacity:1;transform:translateY(0) scale(1)}}
+        @keyframes social-photo-settle{0%{transform:scale(1.08);filter:saturate(0.8)}100%{transform:scale(1);filter:saturate(1)}}
+        @keyframes social-like-pulse{0%{opacity:0;transform:translate(-50%,-50%) scale(0.72)}35%{opacity:1;transform:translate(-50%,-50%) scale(1.05)}100%{opacity:0.78;transform:translate(-50%,-54%) scale(0.94)}}
+        @keyframes social-likes-pop{from{transform:scale(1)}to{transform:scale(1.018)}}
+        @keyframes code-terminal-in{0%{opacity:0;transform:translateY(20px) scale(0.97);filter:blur(3px)}100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
+        @keyframes code-cursor-blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+        @keyframes project-pop{0%{opacity:0;transform:translateY(18px) scale(0.86)}60%{opacity:1;transform:translateY(-4px) scale(1.03)}100%{opacity:1;transform:translateY(0) scale(1)}}
+        @keyframes contact-stage-in{0%{opacity:0;transform:translateY(24px) scale(0.96)}100%{opacity:1;transform:translateY(0) scale(1)}}
+        @keyframes phone-ring{0%,100%{transform:rotate(0) translateX(0)}20%{transform:rotate(-2.5deg) translateX(-2px)}40%{transform:rotate(2.5deg) translateX(2px)}60%{transform:rotate(-1.5deg) translateX(-1px)}80%{transform:rotate(1.5deg) translateX(1px)}}
+        @keyframes contact-pulse{0%{box-shadow:0 0 0 0 rgba(103,224,141,0.38)}70%{box-shadow:0 0 0 24px rgba(103,224,141,0)}100%{box-shadow:0 0 0 0 rgba(103,224,141,0)}}
+        @keyframes email-panel-in{0%{opacity:0;transform:translateY(22px) scale(0.94);filter:blur(4px)}100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
+        @keyframes bts-flip{0%{transform:translate(calc(-50% + 180px),calc(-50% - 12px)) rotateY(-42deg) rotate(9deg) scale(0.88);opacity:0}65%{transform:translate(-50%,-53%) rotateY(8deg) rotate(-1deg) scale(1.03);opacity:1}100%{transform:translate(-50%,-50%) rotateY(0) rotate(0) scale(1);opacity:1}}
+      `}</style>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+</script>
+</body>
+</html>
